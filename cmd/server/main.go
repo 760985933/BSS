@@ -37,6 +37,7 @@ func main() {
 	authH := handlers.NewAuthHandler(authSvc, cfg.JWTSecret)
 	empH := handlers.NewEmployeeHandler(gdb)
 	custH := handlers.NewCustomerHandler(gdb)
+	dealH := handlers.NewDealHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -79,6 +80,17 @@ func main() {
 				r.Post("/customers/{id}/contacts", custH.CreateContact)
 				r.Put("/customers/{id}/contacts/{cid}", custH.UpdateContact)
 				r.Delete("/customers/{id}/contacts/{cid}", custH.DeleteContact)
+			})
+
+			// 商单：查看全角色（ScopeOwner）；增删改/状态流转排除财务（PRD §6）
+			r.Get("/deals", dealH.List)
+			r.Get("/deals/forecast", dealH.Forecast)
+			r.Get("/deals/{id}", dealH.Get)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/deals", dealH.Create)
+				r.Put("/deals/{id}", dealH.Update)
+				r.Post("/deals/{id}/status", dealH.ChangeStatus)
+				r.Delete("/deals/{id}", dealH.Delete)
 			})
 		})
 

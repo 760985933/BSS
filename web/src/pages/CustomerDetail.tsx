@@ -9,12 +9,41 @@ import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
   apiGetCustomer, apiListContacts, apiCreateContact, apiUpdateContact,
-  apiDeleteContact, apiMe, Contact, ContactInput,
+  apiDeleteContact, apiMe, apiListDeals,
+  Contact, ContactInput, DEAL_STAGES, fenToYuan,
 } from '../api'
 
 const placeholder = (label: string) => (
   <Empty description={`${label}将在后续 Sprint 上线`} image={Empty.PRESENTED_IMAGE_SIMPLE} />
 )
+
+// 客户维度商单简表（只读，完整操作在商单管理页）
+function CustomerDeals({ customerId }: { customerId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['deals', 'byCustomer', customerId],
+    queryFn: () => apiListDeals({ customer_id: customerId, page: 1, size: 50 }),
+  })
+  return (
+    <Table
+      rowKey="id"
+      size="small"
+      loading={isLoading}
+      dataSource={data?.list || []}
+      pagination={false}
+      columns={[
+        { title: '单号', dataIndex: 'code', width: 130 },
+        { title: '标题', dataIndex: 'title' },
+        { title: '金额(元)', dataIndex: 'amount_cent', align: 'right' as const, render: (v) => fenToYuan(v) },
+        {
+          title: '阶段', dataIndex: 'status', width: 100,
+          render: (v: string) => <Tag color={DEAL_STAGES[v]?.color}>{DEAL_STAGES[v]?.label || v}</Tag>,
+        },
+        { title: '赢率', dataIndex: 'probability', width: 70, render: (v) => `${v}%` },
+        { title: '预计签约', dataIndex: 'expected_sign_date', width: 110, render: (v) => v || '-' },
+      ]}
+    />
+  )
+}
 
 export default function CustomerDetail() {
   const { id = '' } = useParams()
@@ -119,7 +148,7 @@ export default function CustomerDetail() {
               </Card>
             ),
           },
-          { key: 'deals', label: '商单', children: placeholder('商单（Sprint 3）') },
+          { key: 'deals', label: '商单', children: <CustomerDeals customerId={id} /> },
           { key: 'contracts', label: '合同', children: placeholder('合同（Sprint 4）') },
           { key: 'payments', label: '回款', children: placeholder('回款（Sprint 5）') },
         ]}

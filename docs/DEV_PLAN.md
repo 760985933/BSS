@@ -57,13 +57,13 @@
 - **验收**：销售仅见本人客户 ✅；改他人客户 403 ✅；转移后审计 owner 前后值 ✅；首要联系人唯一 ✅；有商单客户禁删（2001）✅；**1 万条数据：列表 16ms / 搜索 13ms / 第 400 页 34ms**（远低于 300ms）✅
 - 审计模块三轮修复并留下回归测试（audit_test.go）：GORM `Clauses["WHERE"].Expression` 顶层是 `clause.Where` 包装（含 Expr/AndConditions/Eq/IN 多形态，IN 的列名在回调阶段是 `~~~py~~~` 占位符）；软删除走 Delete 回调链且主键条件在 gorm:delete 内部才添加（Before 提取不到，只能 After 快照）。
 
-### Sprint 3 · 商单（约 4 天）
+### Sprint 3 · 商单（约 4 天）—— ✅ 已完成（2026-07-30）
 - 商单 CRUD、单号 SD-、金额元↔分全链路
 - 状态机（对齐 SF 6 态）prospecting→qualifying→proposal→negotiating→won/lost，含回退边与退出标准软校验（422 warning + force 确认）
 - probability 按阶段自动带出（10/25/60/80/100/0）可手调；lost 必填输单原因（5 类枚举）
 - 加权预测金额 Σ(金额×概率) 的 service 层计算 + 单测（仪表盘呈现在 Sprint 6）
-- 客户详情页商单区接入
-- **验收**：非法流转被 422 拒绝；回退合法且记审计；加权预测单测通过；lost 必填原因；won 后金额/客户只读
+- 客户详情页商单区接入；商单列表页（阶段 Tag/赢率进度条/推进 Modal/输单登记）
+- **验收**：跳级 422 ✅；回退合法且概率重置、审计留痕 ✅；金额 0 推进 warning + force 通过 ✅；lost 必填原因且终态不可逆 ✅；won 后金额/客户只读、仅 remark 可改 ✅；加权预测端到端精确（10 万×10%=1 万）✅；单测 5 项（流转/回退/输单/锁定/预测）✅
 
 ### Sprint 4 · 合同 + 附件（约 6 天）
 - 合同 CRUD、单号 HT-；**deal_contracts N:N 关联（0..N 个 won 商单多选，且必须与合同同客户）+ PUT /contracts/:id/deals**

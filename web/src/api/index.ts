@@ -163,3 +163,92 @@ export const apiUpdateContact = (customerId: string, contactId: string, data: Co
 
 export const apiDeleteContact = (customerId: string, contactId: string) =>
   client.delete<unknown, { message: string }>(`/customers/${customerId}/contacts/${contactId}`)
+
+// ---------- 商单 ----------
+export const DEAL_STAGES: Record<string, { label: string; color: string }> = {
+  prospecting: { label: '线索', color: 'default' },
+  qualifying: { label: '需求确认', color: 'cyan' },
+  proposal: { label: '方案报价', color: 'blue' },
+  negotiating: { label: '谈判中', color: 'geekblue' },
+  won: { label: '赢单', color: 'success' },
+  lost: { label: '输单', color: 'error' },
+}
+
+// 与后端 dealFlow 一致的可选目标阶段（含回退边）
+export const DEAL_FLOW: Record<string, string[]> = {
+  prospecting: ['qualifying', 'lost'],
+  qualifying: ['proposal', 'prospecting', 'lost'],
+  proposal: ['negotiating', 'qualifying', 'lost'],
+  negotiating: ['won', 'proposal', 'lost'],
+  won: [],
+  lost: [],
+}
+
+export const LOST_REASONS = [
+  { value: 'no_purchase', label: '客户不买了' },
+  { value: 'competitor', label: '输给竞品' },
+  { value: 'budget', label: '预算不足' },
+  { value: 'qualified_out', label: '我方主动放弃' },
+  { value: 'other', label: '其他' },
+]
+
+export interface Deal {
+  id: string
+  code: string
+  customer_id: string
+  customer?: Customer
+  title: string
+  amount_cent: number
+  probability: number
+  expected_sign_date: string
+  status: string
+  lost_reason: string
+  owner_id: string
+  owner?: Employee
+  remark: string
+  created_at: string
+}
+
+export interface DealInput {
+  customer_id: string
+  title: string
+  amount_cent: number
+  probability?: number
+  expected_sign_date?: string
+  remark?: string
+}
+
+export interface DealQuery {
+  page?: number
+  size?: number
+  keyword?: string
+  status?: string
+  customer_id?: string
+}
+
+export interface ForecastResult {
+  open_count: number
+  total_cent: number
+  weighted_cent: number
+}
+
+export const apiListDeals = (params: DealQuery) =>
+  client.get<unknown, PageData<Deal>>('/deals', { params })
+
+export const apiGetDeal = (id: string) => client.get<unknown, Deal>(`/deals/${id}`)
+
+export const apiCreateDeal = (data: DealInput) => client.post<unknown, Deal>('/deals', data)
+
+export const apiUpdateDeal = (id: string, data: DealInput) =>
+  client.put<unknown, { message: string }>(`/deals/${id}`, data)
+
+export const apiChangeDealStatus = (id: string, to: string, lost_reason?: string, force?: boolean) =>
+  client.post<unknown, Deal>(`/deals/${id}/status`, { to, lost_reason, force })
+
+export const apiDeleteDeal = (id: string) =>
+  client.delete<unknown, { message: string }>(`/deals/${id}`)
+
+export const apiDealForecast = () => client.get<unknown, ForecastResult>('/deals/forecast')
+
+// 金额展示：分 → 元字符串
+export const fenToYuan = (cent: number) => (cent / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2 })

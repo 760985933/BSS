@@ -41,7 +41,10 @@ client.interceptors.response.use(
         location.href = '/login'
       }
     }
-    message.error(err.response?.data?.message || '网络异常，请稍后重试')
+    // 软校验 warning（如商单退出标准）不弹全局错误，交由页面弹确认框处理
+    if (!err.response?.data?.warning) {
+      message.error(err.response?.data?.message || '网络异常，请稍后重试')
+    }
     return Promise.reject(err.response?.data || err)
   },
 )

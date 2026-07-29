@@ -4,6 +4,7 @@ import {
   DashboardOutlined,
   TeamOutlined,
   ShopOutlined,
+  RiseOutlined,
   SettingOutlined,
   LogoutOutlined,
   KeyOutlined,
@@ -53,6 +54,7 @@ export default function MainLayout() {
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: '仪表盘' },
     { key: '/customers', icon: <ShopOutlined />, label: '客户' },
+    { key: '/deals', icon: <RiseOutlined />, label: '商单' },
     { key: '/employees', icon: <TeamOutlined />, label: '员工' },
     ...(me?.role === 'admin'
       ? [{ key: '/system', icon: <SettingOutlined />, label: '系统配置' }]
