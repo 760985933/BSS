@@ -19,19 +19,24 @@
 
 ---
 
-## M0 · 工程基座（约 3–5 天）
+## M0 · 工程基座（约 3–5 天）—— ✅ 已完成（2026-07-29）
 
 **目标**：所有后续开发的"地基"，地基不打后面全返工。
 
-- [ ] 仓库初始化：Go module + web (Vite+React+TS+AntD) + Makefile（dev/build/test）
-- [ ] SQLite 连接封装：WAL、busy_timeout=5000、foreign_keys=ON、写连接池=1
-- [ ] goose migration 接入 + `0001_init.sql`（§4 全部 DDL 一次建全，后续改动走增量 migration）
-- [ ] 统一响应/错误码 `pkg/resp`；金额 `pkg/money`；单号 `pkg/code`（含并发单测）
-- [ ] JWT 登录 + bcrypt + 首启初始化 admin + RBAC middleware（角色+数据范围注入 context）
-- [ ] 前端：axios 封装（401 跳登录）、路由 + 主布局（侧边栏按角色渲染菜单）
-- [ ] GORM 审计 Hook 骨架（AfterCreate/Update/Delete → audit_logs）
+- [x] 仓库初始化：Go module + web (Vite+React+TS+AntD) + Makefile（dev/build/test）
+- [x] SQLite 连接封装：WAL、busy_timeout=5000、foreign_keys=ON、写连接池=1
+- [x] goose migration 接入 + `0001_init.sql`（§4 全部 DDL 一次建全，后续改动走增量 migration）
+- [x] 统一响应/错误码 `pkg/resp`；金额 `pkg/money`；单号 `pkg/code`（含并发单测）
+- [x] JWT 登录 + bcrypt + 首启初始化 admin + RBAC middleware（角色+数据范围注入 context）
+- [x] 前端：axios 封装（401 跳登录）、路由 + 主布局（侧边栏按角色渲染菜单）
+- [x] GORM 审计 Hook 骨架（AfterCreate/Update → audit_logs，软删除识别为 delete）
 
-**验收**：admin 登录后看到空仪表盘；`make test` 通过；新 migration 可重复执行。
+**验收**：admin 登录后看到空仪表盘 ✅；`make test` 通过 ✅；migration 可重复执行 ✅（二次启动 "no migrations to run"）。
+
+**实施记录**：
+- 端到端验证通过：错误密码 401 / 登录取 token / me / employees（数据范围）/ 无 token 拦截 / 改密 / 审计写入（create operator=0 系统、update operator=1）/ SPA 托管与前端路由回退 / API 404 JSON / UTC 时间戳
+- 踩坑记录（详见 `.workbuddy/memory/MEMORY.md`）：GORM 回调内另开会话死锁 → 改 ConnPool 原生 SQL；glebarez 时间列须 DATETIME；UTC 需 NowFunc；npm 代理卡死改 pnpm + onlyBuiltDependencies: [esbuild]
+- 启动方式：`make dev-server`（开发）/ `make run`（构建单二进制运行，embed 前端）
 
 ---
 
