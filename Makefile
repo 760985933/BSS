@@ -16,7 +16,7 @@ dev-web:
 build: build-web build-server
 
 build-web:
-	cd web && $(NPM) run build
+	rm -rf web/dist && mkdir -p web/dist && touch web/dist/.gitkeep && cd web && $(NPM) run build
 
 build-server:
 	go build -o bss-server ./cmd/server

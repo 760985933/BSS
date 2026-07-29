@@ -13,5 +13,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    // 由 Makefile 负责精确清理，避免删除 Go embed 需要的 .gitkeep
+    emptyOutDir: false,
   },
 })
