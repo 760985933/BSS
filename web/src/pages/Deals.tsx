@@ -94,7 +94,8 @@ export default function Deals() {
     })
   }
 
-  const closed = (d: Deal) => d.status === 'won' || d.status === 'lost'
+  // 防御式：入参允许 null（新建时 editing/transiting 均为 null）
+  const closed = (d?: Deal | null) => !!d && (d.status === 'won' || d.status === 'lost')
 
   const submitForm = () => {
     form.validateFields().then((v) => {
@@ -209,7 +210,7 @@ export default function Deals() {
             <Select showSearch optionFilterProp="label" disabled={!!editing}
               options={(customers?.list || []).map((c) => ({ value: c.id, label: c.name }))} />
           </Form.Item>
-          <Form.Item name="title" label="商单标题" rules={[{ required: !closed(editing!), message: '请输入标题' }]}>
+          <Form.Item name="title" label="商单标题" rules={[{ required: !closed(editing), message: '请输入标题' }]}>
             <Input disabled={!!editing && closed(editing)} placeholder="例：云杉科技 CRM 实施项目" />
           </Form.Item>
           <Form.Item name="amount" label="金额（元）">
