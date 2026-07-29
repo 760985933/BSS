@@ -153,7 +153,6 @@ export default function Employees() {
         confirmLoading={saveMut.isPending}
         okText="保存"
         cancelText="取消"
-        destroyOnClose
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>

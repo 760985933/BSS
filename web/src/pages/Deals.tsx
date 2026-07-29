@@ -203,7 +203,7 @@ export default function Deals() {
         onCancel={() => { setCreating(false); setEditing(null); form.resetFields() }}
         onOk={submitForm}
         confirmLoading={saveMut.isPending}
-        okText="保存" cancelText="取消" destroyOnClose
+        okText="保存" cancelText="取消"
       >
         <Form form={form} layout="vertical">
           <Form.Item name="customer_id" label="关联客户" rules={[{ required: true, message: '请选择客户' }]}>

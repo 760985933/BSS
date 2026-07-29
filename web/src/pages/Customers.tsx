@@ -130,7 +130,7 @@ export default function Customers() {
         onCancel={() => { setCreating(false); setEditing(null); form.resetFields() }}
         onOk={() => form.validateFields().then((v) => saveMut.mutate(v))}
         confirmLoading={saveMut.isPending}
-        okText="保存" cancelText="取消" destroyOnClose
+        okText="保存" cancelText="取消"
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="客户名称" rules={[{ required: true, message: '请输入客户名称' }]}>
