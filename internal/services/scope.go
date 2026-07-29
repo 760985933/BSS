@@ -31,20 +31,23 @@ func ScopeOwner(db *gorm.DB, ctx context.Context) *gorm.DB {
 	}
 }
 
-// CanAccessOwner 单条记录级校验：当前用户是否有权访问该 owner 的数据（写操作前调用）
-func CanAccessOwner(db *gorm.DB, ctx context.Context, ownerID uint) bool {
+// CanAccessOwner 单条记录级校验：当前用户是否有权访问该 owner 的数据（写操作前调用）。
+// 返回错误表示数据范围校验本身失败（DB 异常），调用方应按 500 处理而非静默放行/拒绝。
+func CanAccessOwner(db *gorm.DB, ctx context.Context, ownerID uint) (bool, error) {
 	c := middleware.UserFrom(ctx)
 	if c == nil {
-		return false
+		return false, nil
 	}
 	switch c.Role {
 	case models.RoleAdmin, models.RoleFinance, models.RoleHR:
-		return true
+		return true, nil
 	case models.RoleSalesLead:
 		var cnt int64
-		db.Model(&models.Employee{}).Where("id = ? AND dept = ?", ownerID, c.Dept).Count(&cnt)
-		return cnt > 0
+		if err := db.Model(&models.Employee{}).Where("id = ? AND dept = ?", ownerID, c.Dept).Count(&cnt).Error; err != nil {
+			return false, err
+		}
+		return cnt > 0, nil
 	default:
-		return ownerID == c.UserID
+		return ownerID == c.UserID, nil
 	}
 }

@@ -117,7 +117,11 @@ func TestCanAccessOwner(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := CanAccessOwner(db, injectClaims(c.userID, c.role, c.dept), c.ownerID); got != c.want {
+			got, err := CanAccessOwner(db, injectClaims(c.userID, c.role, c.dept), c.ownerID)
+			if err != nil {
+				t.Fatalf("%s: 意外错误 %v", c.name, err)
+			}
+			if got != c.want {
 				t.Errorf("%s: 期望 %v，实际 %v", c.name, c.want, got)
 			}
 		})

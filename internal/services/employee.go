@@ -56,7 +56,9 @@ func (s *EmployeeService) Create(ctx context.Context, in EmployeeInput, email st
 		return nil, ErrInvalidRole
 	}
 	var cnt int64
-	s.db.WithContext(ctx).Model(&models.Employee{}).Where("email = ?", email).Count(&cnt)
+	if err := s.db.WithContext(ctx).Model(&models.Employee{}).Where("email = ?", email).Count(&cnt).Error; err != nil {
+		return nil, err
+	}
 	if cnt > 0 {
 		return nil, ErrEmailExists
 	}
@@ -139,8 +141,10 @@ func (s *EmployeeService) ResetPassword(ctx context.Context, id uint) error {
 // ensureAnotherAdmin 保证 id 之外还有至少一个 active admin
 func (s *EmployeeService) ensureAnotherAdmin(ctx context.Context, excludeID uint) error {
 	var cnt int64
-	s.db.WithContext(ctx).Model(&models.Employee{}).
-		Where("role = ? AND status = 'active' AND id <> ?", models.RoleAdmin, excludeID).Count(&cnt)
+	if err := s.db.WithContext(ctx).Model(&models.Employee{}).
+		Where("role = ? AND status = 'active' AND id <> ?", models.RoleAdmin, excludeID).Count(&cnt).Error; err != nil {
+		return err
+	}
 	if cnt == 0 {
 		return ErrLastAdmin
 	}
@@ -181,7 +185,9 @@ func (s *EmployeeService) RemoveDict(ctx context.Context, id uint) error {
 	}
 	if d.Type == "dept" {
 		var cnt int64
-		s.db.WithContext(ctx).Model(&models.Employee{}).Where("dept = ?", d.Value).Count(&cnt)
+		if err := s.db.WithContext(ctx).Model(&models.Employee{}).Where("dept = ?", d.Value).Count(&cnt).Error; err != nil {
+			return err
+		}
 		if cnt > 0 {
 			return fmt.Errorf("部门「%s」下仍有 %d 名员工，不能删除", d.Value, cnt)
 		}

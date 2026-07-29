@@ -43,7 +43,9 @@ func (s *CustomerService) Create(ctx context.Context, in CustomerInput, ownerID 
 		return nil, errors.New("客户名称不能为空")
 	}
 	var cnt int64
-	s.db.WithContext(ctx).Model(&models.Customer{}).Where("name = ?", in.Name).Count(&cnt)
+	if err := s.db.WithContext(ctx).Model(&models.Customer{}).Where("name = ?", in.Name).Count(&cnt).Error; err != nil {
+		return nil, err
+	}
 	if cnt > 0 {
 		return nil, ErrCustomerNameExists
 	}
@@ -71,7 +73,9 @@ func (s *CustomerService) Update(ctx context.Context, id uint, in CustomerInput)
 		return errors.New("客户名称不能为空")
 	}
 	var cnt int64
-	s.db.WithContext(ctx).Model(&models.Customer{}).Where("name = ? AND id <> ?", in.Name, id).Count(&cnt)
+	if err := s.db.WithContext(ctx).Model(&models.Customer{}).Where("name = ? AND id <> ?", in.Name, id).Count(&cnt).Error; err != nil {
+		return err
+	}
 	if cnt > 0 {
 		return ErrCustomerNameExists
 	}
@@ -88,7 +92,9 @@ func (s *CustomerService) Update(ctx context.Context, id uint, in CustomerInput)
 // Transfer 转移负责人（审计由 GORM Hook 记录 owner_id 前后值）
 func (s *CustomerService) Transfer(ctx context.Context, id uint, newOwnerID uint) error {
 	var cnt int64
-	s.db.WithContext(ctx).Model(&models.Employee{}).Where("id = ? AND status = 'active'", newOwnerID).Count(&cnt)
+	if err := s.db.WithContext(ctx).Model(&models.Employee{}).Where("id = ? AND status = 'active'", newOwnerID).Count(&cnt).Error; err != nil {
+		return err
+	}
 	if cnt == 0 {
 		return errors.New("目标负责人不存在或已停用")
 	}
@@ -103,11 +109,15 @@ func (s *CustomerService) Transfer(ctx context.Context, id uint, newOwnerID uint
 // Delete 软删除；存在下游数据（商单/合同/回款）禁止（PRD §4.3 删除约束）
 func (s *CustomerService) Delete(ctx context.Context, id uint) error {
 	var cnt int64
-	s.db.WithContext(ctx).Model(&models.Deal{}).Where("customer_id = ?", id).Count(&cnt)
+	if err := s.db.WithContext(ctx).Model(&models.Deal{}).Where("customer_id = ?", id).Count(&cnt).Error; err != nil {
+		return err
+	}
 	if cnt > 0 {
 		return ErrCustomerHasChildren
 	}
-	s.db.WithContext(ctx).Model(&models.Contract{}).Where("customer_id = ?", id).Count(&cnt)
+	if err := s.db.WithContext(ctx).Model(&models.Contract{}).Where("customer_id = ?", id).Count(&cnt).Error; err != nil {
+		return err
+	}
 	if cnt > 0 {
 		return ErrCustomerHasChildren
 	}

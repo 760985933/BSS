@@ -211,7 +211,12 @@ func (h *CustomerHandler) canAccess(w http.ResponseWriter, r *http.Request, id u
 		resp.Fail(w, http.StatusNotFound, resp.CodeNotFound, "客户不存在")
 		return false
 	}
-	if !services.CanAccessOwner(h.db, r.Context(), ownerID) {
+	allowed, err := services.CanAccessOwner(h.db, r.Context(), ownerID)
+	if err != nil {
+		resp.Fail(w, http.StatusInternalServerError, resp.CodeInternal, "数据范围校验失败")
+		return false
+	}
+	if !allowed {
 		resp.Fail(w, http.StatusForbidden, resp.CodeForbidden, "无权访问该客户（不在你的数据范围内）")
 		return false
 	}
