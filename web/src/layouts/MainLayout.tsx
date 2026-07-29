@@ -3,6 +3,7 @@ import { Layout, Menu, Dropdown, Avatar, Modal, Form, Input, App } from 'antd'
 import {
   DashboardOutlined,
   TeamOutlined,
+  ShopOutlined,
   SettingOutlined,
   LogoutOutlined,
   KeyOutlined,
@@ -51,6 +52,7 @@ export default function MainLayout() {
 
   const menuItems = [
     { key: '/', icon: <DashboardOutlined />, label: '仪表盘' },
+    { key: '/customers', icon: <ShopOutlined />, label: '客户' },
     { key: '/employees', icon: <TeamOutlined />, label: '员工' },
     ...(me?.role === 'admin'
       ? [{ key: '/system', icon: <SettingOutlined />, label: '系统配置' }]

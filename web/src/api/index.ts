@@ -81,3 +81,85 @@ export const apiAddDict = (type: string, value: string) =>
 
 export const apiRemoveDict = (id: string) =>
   client.delete<unknown, { message: string }>(`/dicts/${id}`)
+
+// ---------- 客户 ----------
+export interface Customer {
+  id: string
+  code: string
+  name: string
+  industry: string
+  source: string
+  level: string
+  remark: string
+  owner_id: string
+  owner?: Employee
+  created_at: string
+}
+
+export interface CustomerInput {
+  name: string
+  industry: string
+  source: string
+  level: string
+  remark: string
+}
+
+export interface CustomerQuery {
+  page?: number
+  size?: number
+  keyword?: string
+  industry?: string
+  source?: string
+  level?: string
+  owner_id?: string
+}
+
+export const apiListCustomers = (params: CustomerQuery) =>
+  client.get<unknown, PageData<Customer>>('/customers', { params })
+
+export const apiGetCustomer = (id: string) => client.get<unknown, Customer>(`/customers/${id}`)
+
+export const apiCreateCustomer = (data: CustomerInput) =>
+  client.post<unknown, Customer>('/customers', data)
+
+export const apiUpdateCustomer = (id: string, data: CustomerInput) =>
+  client.put<unknown, { message: string }>(`/customers/${id}`, data)
+
+export const apiDeleteCustomer = (id: string) =>
+  client.delete<unknown, { message: string }>(`/customers/${id}`)
+
+export const apiTransferCustomer = (id: string, owner_id: string) =>
+  client.post<unknown, { message: string }>(`/customers/${id}/transfer`, { owner_id })
+
+// ---------- 联系人 ----------
+export interface Contact {
+  id: string
+  customer_id: string
+  name: string
+  phone: string
+  email: string
+  position: string
+  is_primary: boolean
+  remark: string
+}
+
+export interface ContactInput {
+  name: string
+  phone: string
+  email: string
+  position: string
+  is_primary: boolean
+  remark: string
+}
+
+export const apiListContacts = (customerId: string) =>
+  client.get<unknown, Contact[]>(`/customers/${customerId}/contacts`)
+
+export const apiCreateContact = (customerId: string, data: ContactInput) =>
+  client.post<unknown, Contact>(`/customers/${customerId}/contacts`, data)
+
+export const apiUpdateContact = (customerId: string, contactId: string, data: ContactInput) =>
+  client.put<unknown, { message: string }>(`/customers/${customerId}/contacts/${contactId}`, data)
+
+export const apiDeleteContact = (customerId: string, contactId: string) =>
+  client.delete<unknown, { message: string }>(`/customers/${customerId}/contacts/${contactId}`)

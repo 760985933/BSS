@@ -36,6 +36,7 @@ func main() {
 
 	authH := handlers.NewAuthHandler(authSvc, cfg.JWTSecret)
 	empH := handlers.NewEmployeeHandler(gdb)
+	custH := handlers.NewCustomerHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -64,6 +65,20 @@ func main() {
 			r.With(middleware.RequireRole(models.RoleAdmin)).Group(func(r chi.Router) {
 				r.Post("/dicts", empH.AddDict)
 				r.Delete("/dicts/{id}", empH.RemoveDict)
+			})
+
+			// 客户：查看全角色（ScopeOwner 行级过滤）；增删改/转移排除财务（PRD §6）
+			r.Get("/customers", custH.List)
+			r.Get("/customers/{id}", custH.Get)
+			r.Get("/customers/{id}/contacts", custH.ListContacts)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/customers", custH.Create)
+				r.Put("/customers/{id}", custH.Update)
+				r.Delete("/customers/{id}", custH.Delete)
+				r.Post("/customers/{id}/transfer", custH.Transfer)
+				r.Post("/customers/{id}/contacts", custH.CreateContact)
+				r.Put("/customers/{id}/contacts/{cid}", custH.UpdateContact)
+				r.Delete("/customers/{id}/contacts/{cid}", custH.DeleteContact)
 			})
 		})
 

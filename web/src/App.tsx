@@ -7,6 +7,8 @@ import MainLayout from './layouts/MainLayout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
+import Customers from './pages/Customers'
+import CustomerDetail from './pages/CustomerDetail'
 import System from './pages/System'
 import { ReactNode } from 'react'
 
@@ -39,6 +41,8 @@ export default function App() {
                 >
                   <Route index element={<Dashboard />} />
                   <Route path="employees" element={<Employees />} />
+                  <Route path="customers" element={<Customers />} />
+                  <Route path="customers/:id" element={<CustomerDetail />} />
                   <Route path="system" element={<System />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />

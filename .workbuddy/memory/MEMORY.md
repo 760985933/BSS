@@ -21,6 +21,9 @@
 4. **npm 卡死**：本机 HTTP_PROXY(127.0.0.1:58609) 让 npm 安装挂起无产物；网络到 npm registry 极慢。用 `pnpm install`（有全局 store），且 package.json 需配 `pnpm.onlyBuiltDependencies: ["esbuild"]` 否则 vite build 失败。
 5. **embed 限制**：Go embed 不能引用上级目录，migrations 和 web/dist 都由根目录 assets.go embed。
 6. **Edit 工具**：本会话写入的文件，跨会话 Edit 前必须先 Read。
+7. **GORM WHERE 子句结构**（审计提取主键三轮才修好，audit_test.go 已钉死）：`Clauses["WHERE"].Expression` 顶层是 `clause.Where` 包装；用户 Where("id=?") 产生 `clause.Expr`（带反引号）；软删除附加 `clause.Eq{deleted_at}`；`Delete(model, pk)` 的主键条件是 `clause.IN` 且回调阶段列名是 `~~~py~~~` 占位符（Build 时才替换）。
+8. **软删除回调时序**：GORM 软删除走 **Delete 回调链**（不是 Update）；且主键 WHERE 条件在 gorm:delete 内部才添加——Before("gorm:delete") 提取不到主键，只能 After 时快照（软删行仍在表中可查）。
+9. **Update(column)/Updates(map)**：Dest 是 map 不含完整行，审计 after_json 需改为快照当前行。
 
 ## 工程环境
 - Go 1.23.5（toolchain 自动升 1.25）；Node 用 managed：/Users/tianfeng/.workbuddy/binaries/node/versions/22.22.2/bin/（Makefile 已写死 NODE/NPM 路径，但安装用 pnpm）。
@@ -30,4 +33,6 @@
 
 ## 进度
 - M0 工程基座：✅ 2026-07-29 完成并端到端验证。
-- 下一步：M1 Sprint 1 员工档案 CRUD + 权限收尾（docs/DEV_PLAN.md）。
+- M1 Sprint 1 员工档案：✅ 同日完成（commit bb25205，已 push）。
+- M1 Sprint 2 客户+联系人：✅ 同日完成（1 万条性能 16-34ms）。
+- 下一步：M1 Sprint 3 商单（状态机 6 态 + probability + 加权预测）。
