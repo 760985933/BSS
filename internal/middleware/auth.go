@@ -59,7 +59,7 @@ func AuthRequired(secret string) func(http.Handler) http.Handler {
 				resp.Fail(w, http.StatusUnauthorized, resp.CodeUnauthorized, "登录已过期，请重新登录")
 				return
 			}
-			ctx := context.WithValue(r.Context(), ctxClaims, claims)
+			ctx := WithClaims(r.Context(), claims)
 			ctx = actor.WithActor(ctx, claims.UserID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -82,6 +82,11 @@ func RequireRole(roles ...string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// WithClaims 注入登录态（AuthRequired 内使用；测试代码也可直接注入，绕过 HTTP 层）
+func WithClaims(ctx context.Context, c *Claims) context.Context {
+	return context.WithValue(ctx, ctxClaims, c)
 }
 
 // UserFrom 从 context 取当前登录用户

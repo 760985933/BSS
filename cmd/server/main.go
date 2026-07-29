@@ -12,6 +12,7 @@ import (
 	"bss/internal/db"
 	"bss/internal/handlers"
 	"bss/internal/middleware"
+	"bss/internal/models"
 	"bss/internal/pkg/resp"
 	"bss/internal/services"
 
@@ -48,7 +49,22 @@ func main() {
 			r.Use(middleware.AuthRequired(cfg.JWTSecret))
 			r.Get("/auth/me", authH.Me)
 			r.Post("/auth/change-password", authH.ChangePassword)
-			r.Get("/employees", empH.List) // 全角色可读，数据范围在 handler 内控制
+
+			// 员工：列表全角色可读（范围在 handler 控制）；增改/状态管理仅 admin/hr；重置密码仅 admin
+			r.Get("/employees", empH.List)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleHR)).Group(func(r chi.Router) {
+				r.Post("/employees", empH.Create)
+				r.Put("/employees/{id}", empH.Update)
+				r.Post("/employees/{id}/status", empH.SetStatus)
+			})
+			r.With(middleware.RequireRole(models.RoleAdmin)).Post("/employees/{id}/reset-password", empH.ResetPassword)
+
+			// 数据字典：全员可读，admin 维护
+			r.Get("/dicts", empH.ListDicts)
+			r.With(middleware.RequireRole(models.RoleAdmin)).Group(func(r chi.Router) {
+				r.Post("/dicts", empH.AddDict)
+				r.Delete("/dicts/{id}", empH.RemoveDict)
+			})
 		})
 
 		// /api 下未匹配路径返回 JSON 404（而不是 SPA 页面）

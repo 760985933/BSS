@@ -42,4 +42,42 @@ export const apiChangePassword = (old_password: string, new_password: string) =>
   client.post<unknown, { message: string }>('/auth/change-password', { old_password, new_password })
 
 // ---------- 员工 ----------
-export const apiListEmployees = () => client.get<unknown, PageData<Employee>>('/employees')
+export const apiListEmployees = (keyword?: string) =>
+  client.get<unknown, PageData<Employee>>('/employees', { params: { keyword } })
+
+export interface EmployeeInput {
+  name: string
+  phone: string
+  dept: string
+  position: string
+  role: string
+}
+
+export const apiCreateEmployee = (data: EmployeeInput & { email: string }) =>
+  client.post<unknown, { employee: Employee; initial_password: string; message: string }>('/employees', data)
+
+export const apiUpdateEmployee = (id: string, data: EmployeeInput) =>
+  client.put<unknown, { message: string }>(`/employees/${id}`, data)
+
+export const apiSetEmployeeStatus = (id: string, active: boolean) =>
+  client.post<unknown, { message: string }>(`/employees/${id}/status`, { active })
+
+export const apiResetEmployeePassword = (id: string) =>
+  client.post<unknown, { initial_password: string; message: string }>(`/employees/${id}/reset-password`)
+
+// ---------- 数据字典 ----------
+export interface Dict {
+  id: string
+  type: string
+  value: string
+  sort: number
+}
+
+export const apiListDicts = (type: string) =>
+  client.get<unknown, Dict[]>('/dicts', { params: { type } })
+
+export const apiAddDict = (type: string, value: string) =>
+  client.post<unknown, Dict>('/dicts', { type, value })
+
+export const apiRemoveDict = (id: string) =>
+  client.delete<unknown, { message: string }>(`/dicts/${id}`)

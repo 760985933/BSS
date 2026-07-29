@@ -197,3 +197,12 @@ type CodeCounter struct {
 	Year   int    `gorm:"primaryKey"`
 	Seq    int    `json:"seq"`
 }
+
+// Dict 通用数据字典（type：dept/industry/source/level/pay_method）
+// 唯一性由 DB 部分索引 uq_dicts_type_value 保证（仅未删除行）
+type Dict struct {
+	Base
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	Sort  int    `json:"sort"`
+}

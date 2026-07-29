@@ -53,7 +53,7 @@ export default function MainLayout() {
     { key: '/', icon: <DashboardOutlined />, label: '仪表盘' },
     { key: '/employees', icon: <TeamOutlined />, label: '员工' },
     ...(me?.role === 'admin'
-      ? [{ key: '/system', icon: <SettingOutlined />, label: '系统配置', disabled: true }]
+      ? [{ key: '/system', icon: <SettingOutlined />, label: '系统配置' }]
       : []),
   ]
 
