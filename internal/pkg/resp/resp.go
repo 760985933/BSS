@@ -25,6 +25,8 @@ const (
 	CodePlanLocked        = 3002 // 计划已被核销，禁改禁删
 	CodeCrossCustomerLink = 3003 // 商单与合同不同客户，禁止关联
 	CodeFieldLocked       = 3004 // 终态锁定字段不可修改
+	CodeContractHasChildren = 3005 // 合同存在回款计划，禁止删除
+	CodeContractLocked      = 3006 // 合同已签约/终态，禁止删除
 )
 
 type Body struct {

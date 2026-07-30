@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	bss "bss"
@@ -38,6 +39,7 @@ func main() {
 	empH := handlers.NewEmployeeHandler(gdb)
 	custH := handlers.NewCustomerHandler(gdb)
 	dealH := handlers.NewDealHandler(gdb)
+	contrH := handlers.NewContractHandler(gdb, filepath.Join(cfg.DataDir, "uploads"))
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -89,10 +91,26 @@ func main() {
 			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
 				r.Post("/deals", dealH.Create)
 				r.Put("/deals/{id}", dealH.Update)
-				r.Post("/deals/{id}/status", dealH.ChangeStatus)
-				r.Delete("/deals/{id}", dealH.Delete)
-			})
+			r.Post("/deals/{id}/status", dealH.ChangeStatus)
+			r.Delete("/deals/{id}", dealH.Delete)
 		})
+
+		// 合同：查看全角色（ScopeOwner）；增删改/状态流转/关联商单/附件排除财务（PRD §6）
+		r.Get("/contracts", contrH.List)
+		r.Get("/contracts/{id}", contrH.Get)
+		r.Get("/contracts/{id}/attachments", contrH.ListAttachments)
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+			r.Post("/contracts", contrH.Create)
+			r.Put("/contracts/{id}", contrH.Update)
+			r.Post("/contracts/{id}/status", contrH.ChangeStatus)
+			r.Put("/contracts/{id}/deals", contrH.ReplaceDeals)
+			r.Delete("/contracts/{id}", contrH.Delete)
+			r.Post("/contracts/{id}/attachments", contrH.UploadAttachment)
+			r.Delete("/attachments/{id}", contrH.DeleteAttachment)
+		})
+		// 附件下载：鉴权组内，非登录不可下载
+		r.Get("/attachments/{id}/download", contrH.DownloadAttachment)
+	})
 
 		// /api 下未匹配路径返回 JSON 404（而不是 SPA 页面）
 		r.NotFound(func(w http.ResponseWriter, req *http.Request) {

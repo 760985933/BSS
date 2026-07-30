@@ -65,12 +65,12 @@
 - 客户详情页商单区接入；商单列表页（阶段 Tag/赢率进度条/推进 Modal/输单登记）
 - **验收**：跳级 422 ✅；回退合法且概率重置、审计留痕 ✅；金额 0 推进 warning + force 通过 ✅；lost 必填原因且终态不可逆 ✅；won 后金额/客户只读、仅 remark 可改 ✅；加权预测端到端精确（10 万×10%=1 万）✅；单测 5 项（流转/回退/输单/锁定/预测）✅
 
-### Sprint 4 · 合同 + 附件（约 6 天）
+### Sprint 4 · 合同 + 附件（约 6 天）—— ✅ 已完成（2026-07-30）
 - 合同 CRUD、单号 HT-；**deal_contracts N:N 关联（0..N 个 won 商单多选，且必须与合同同客户）+ PUT /contracts/:id/deals**
 - 状态机 draft→pending→signed→performing→completed，回退 pending→draft，旁路 cancelled（签约前）/terminated（签约后必填原因）/expired（人工标记）
 - signed 后金额/客户/关联商单只读（editableFields 判定）
 - 附件上传/下载（鉴权、类型白名单、20MB）
-- **验收**：仅 won 商单可被关联；跨客户商单关联被 422 拒绝；多商单合并签一份合同可建；pending 可退回 draft 并记审计；附件非登录不可下载；terminated 必填原因
+- **验收**：仅 won 商单可被关联 ✅；跨客户商单关联被 422 拒绝 ✅；多商单合并签一份合同可建 ✅；pending 可退回 draft 并记审计 ✅；附件非登录不可下载（401）✅；terminated 必填原因（422）✅；signed 后金额/商单锁定（422）✅；E2E 18 项断言全绿 ✅
 
 ### Sprint 5 · 回款（约 5 天）
 - 回款计划 CRUD（总额 ≤ 合同额校验）；**已核销计划禁改金额/禁删，只能新增调整期**

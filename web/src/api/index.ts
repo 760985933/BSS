@@ -252,3 +252,112 @@ export const apiDealForecast = () => client.get<unknown, ForecastResult>('/deals
 
 // 金额展示：分 → 元字符串
 export const fenToYuan = (cent: number) => (cent / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+
+// ---------- 合同 ----------
+export const CONTRACT_STATUS: Record<string, { label: string; color: string }> = {
+  draft: { label: '草稿', color: 'default' },
+  pending: { label: '待签约', color: 'gold' },
+  signed: { label: '已签约', color: 'blue' },
+  performing: { label: '履行中', color: 'cyan' },
+  completed: { label: '已完成', color: 'success' },
+  cancelled: { label: '已取消', color: 'default' },
+  terminated: { label: '已终止', color: 'error' },
+  expired: { label: '已过期', color: 'orange' },
+}
+
+// 与后端 contractFlow 一致的可选目标状态（含回退边）
+export const CONTRACT_FLOW: Record<string, string[]> = {
+  draft: ['pending', 'cancelled'],
+  pending: ['signed', 'draft', 'cancelled'],
+  signed: ['performing', 'terminated', 'expired'],
+  performing: ['completed', 'terminated', 'expired'],
+  completed: [],
+  cancelled: [],
+  terminated: [],
+  expired: [],
+}
+
+export interface Contract {
+  id: string
+  code: string
+  customer_id: string
+  customer?: Customer
+  title: string
+  amount_cent: number
+  sign_date: string
+  start_date: string
+  expire_date: string
+  status: string
+  terminate_reason: string
+  owner_id: string
+  owner?: Employee
+  remark: string
+  deals?: Deal[]
+  created_at: string
+}
+
+export interface ContractInput {
+  customer_id: string
+  title: string
+  amount_cent: number
+  sign_date?: string
+  start_date?: string
+  expire_date?: string
+  remark?: string
+  deal_ids?: number[]
+}
+
+export interface ContractQuery {
+  page?: number
+  size?: number
+  keyword?: string
+  status?: string
+  customer_id?: string
+}
+
+export const apiListContracts = (params: ContractQuery) =>
+  client.get<unknown, PageData<Contract>>('/contracts', { params })
+
+export const apiGetContract = (id: string) => client.get<unknown, Contract>(`/contracts/${id}`)
+
+export const apiCreateContract = (data: ContractInput) =>
+  client.post<unknown, Contract>('/contracts', data)
+
+export const apiUpdateContract = (id: string, data: ContractInput) =>
+  client.put<unknown, { message: string }>(`/contracts/${id}`, data)
+
+export const apiChangeContractStatus = (id: string, to: string, terminate_reason?: string) =>
+  client.post<unknown, Contract>(`/contracts/${id}/status`, { to, terminate_reason })
+
+export const apiDeleteContract = (id: string) =>
+  client.delete<unknown, { message: string }>(`/contracts/${id}`)
+
+export const apiReplaceContractDeals = (id: string, deal_ids: number[]) =>
+  client.put<unknown, { message: string }>(`/contracts/${id}/deals`, { deal_ids })
+
+// ---------- 附件 ----------
+export interface Attachment {
+  id: string
+  entity_type: string
+  entity_id: string
+  file_name: string
+  file_size: number
+  mime: string
+  uploaded_by: string
+  created_at: string
+}
+
+export const apiListContractAttachments = (id: string) =>
+  client.get<unknown, Attachment[]>(`/contracts/${id}/attachments`)
+
+export const apiUploadContractAttachment = (id: string, file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return client.post<unknown, Attachment>(`/contracts/${id}/attachments`, fd)
+}
+
+export const apiDownloadAttachment = (id: string) =>
+  client.get<unknown, Blob>(`/attachments/${id}/download`, { responseType: 'blob' })
+
+export const apiDeleteAttachment = (id: string) =>
+  client.delete<unknown, { message: string }>(`/attachments/${id}`)
