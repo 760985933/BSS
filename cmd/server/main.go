@@ -40,6 +40,7 @@ func main() {
 	custH := handlers.NewCustomerHandler(gdb)
 	dealH := handlers.NewDealHandler(gdb)
 	contrH := handlers.NewContractHandler(gdb, filepath.Join(cfg.DataDir, "uploads"))
+	payH := handlers.NewPaymentHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -110,6 +111,20 @@ func main() {
 		})
 		// 附件下载：鉴权组内，非登录不可下载
 		r.Get("/attachments/{id}/download", contrH.DownloadAttachment)
+
+		// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
+		r.Get("/contracts/{id}/plans", payH.ListPlans)
+		r.Get("/contracts/{id}/records", payH.ListRecords)
+		r.Get("/contracts/{id}/payment-summary", payH.Summary)
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+			r.Post("/contracts/{id}/plans", payH.CreatePlan)
+			r.Put("/contracts/{id}/plans/{pid}", payH.UpdatePlan)
+			r.Delete("/contracts/{id}/plans/{pid}", payH.DeletePlan)
+		})
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance)).Group(func(r chi.Router) {
+			r.Post("/contracts/{id}/records", payH.CreateRecords)
+			r.Delete("/contracts/{id}/records/{rid}", payH.DeleteRecord)
+		})
 	})
 
 		// /api 下未匹配路径返回 JSON 404（而不是 SPA 页面）

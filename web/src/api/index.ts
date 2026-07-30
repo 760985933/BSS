@@ -361,3 +361,85 @@ export const apiDownloadAttachment = (id: string) =>
 
 export const apiDeleteAttachment = (id: string) =>
   client.delete<unknown, { message: string }>(`/attachments/${id}`)
+
+// ---------- 回款 ----------
+export const PLAN_STATUS: Record<string, { label: string; color: string }> = {
+  pending: { label: '待收', color: 'default' },
+  partial: { label: '部分核销', color: 'processing' },
+  paid: { label: '已收', color: 'success' },
+}
+
+export const PAY_METHODS = [
+  { value: 'bank', label: '银行转账' },
+  { value: 'cash', label: '现金' },
+  { value: 'check', label: '支票' },
+  { value: 'other', label: '其他' },
+]
+
+export interface PaymentPlan {
+  id: string
+  contract_id: string
+  period_no: number
+  due_date: string
+  amount_cent: number
+  status: string
+  is_overdue: boolean
+  created_at: string
+}
+
+export interface PaymentRecord {
+  id: string
+  contract_id: string
+  plan_id: string | null
+  amount_cent: number
+  paid_at: string
+  method: string
+  remark: string
+  created_by: string
+  created_at: string
+}
+
+export interface PaymentSummary {
+  receivable_cent: number
+  received_cent: number
+  balance_cent: number
+  overdue_cent: number
+}
+
+export interface PlanInput {
+  period_no: number
+  due_date: string
+  amount_cent: number
+}
+
+export interface RecordInput {
+  plan_id: string | null
+  amount_cent: number
+  paid_at: string
+  method?: string
+  remark?: string
+}
+
+export const apiListPlans = (contractId: string) =>
+  client.get<unknown, PaymentPlan[]>(`/contracts/${contractId}/plans`)
+
+export const apiCreatePlan = (contractId: string, data: PlanInput) =>
+  client.post<unknown, PaymentPlan>(`/contracts/${contractId}/plans`, data)
+
+export const apiUpdatePlan = (contractId: string, planId: string, data: PlanInput) =>
+  client.put<unknown, { message: string }>(`/contracts/${contractId}/plans/${planId}`, data)
+
+export const apiDeletePlan = (contractId: string, planId: string) =>
+  client.delete<unknown, { message: string }>(`/contracts/${contractId}/plans/${planId}`)
+
+export const apiListRecords = (contractId: string) =>
+  client.get<unknown, PaymentRecord[]>(`/contracts/${contractId}/records`)
+
+export const apiCreateRecords = (contractId: string, records: RecordInput[]) =>
+  client.post<unknown, { message: string }>(`/contracts/${contractId}/records`, { records })
+
+export const apiDeleteRecord = (contractId: string, recordId: string) =>
+  client.delete<unknown, { message: string }>(`/contracts/${contractId}/records/${recordId}`)
+
+export const apiPaymentSummary = (contractId: string) =>
+  client.get<unknown, PaymentSummary>(`/contracts/${contractId}/payment-summary`)

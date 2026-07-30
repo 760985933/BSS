@@ -72,11 +72,12 @@
 - 附件上传/下载（鉴权、类型白名单、20MB）
 - **验收**：仅 won 商单可被关联 ✅；跨客户商单关联被 422 拒绝 ✅；多商单合并签一份合同可建 ✅；pending 可退回 draft 并记审计 ✅；附件非登录不可下载（401）✅；terminated 必填原因（422）✅；signed 后金额/商单锁定（422）✅；E2E 18 项断言全绿 ✅
 
-### Sprint 5 · 回款（约 5 天）
+### Sprint 5 · 回款 ✅（约 5 天）
 - 回款计划 CRUD（总额 ≤ 合同额校验）；**已核销计划禁改金额/禁删，只能新增调整期**
 - 回款记录录入/核销、计划状态自动推进 pending→partial→paid
 - 逾期派生查询（is_overdue）+ 合同维度汇总（应收/已收/余额/逾期额）
 - **验收**：核销金额准确到分（边界用例：多退少补、跨计划核销）；已核销计划改删被 422 拒绝；财务角色才能录入
+- 实现：后端 `internal/services/payment.go` + `internal/handlers/payment.go`（计划 CRUD 排除财务、回款录入仅 admin/finance、ScopeOwner 行级校验）；前端 `web/src/pages/Payments.tsx` + `web/src/components/PaymentCenter.tsx`（汇总卡片/计划表/记录表/录入表单，按角色门控）；`web/src/api/index.ts` 增类型与接口；单测（后端 6 + 前端 3）、E2E（26 断言全绿）
 
 ### Sprint 6 · 提醒 + 仪表盘 + 联调（约 6 天）
 - cron 每日 09:00 扫描：合同 30 天内到期、回款逾期 → notifications（dedup_key 去重）

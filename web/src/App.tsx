@@ -11,6 +11,7 @@ import Customers from './pages/Customers'
 import CustomerDetail from './pages/CustomerDetail'
 import Deals from './pages/Deals'
 import Contracts from './pages/Contracts'
+import Payments from './pages/Payments'
 import System from './pages/System'
 import { ReactNode } from 'react'
 
@@ -47,6 +48,7 @@ export default function App() {
                   <Route path="customers/:id" element={<CustomerDetail />} />
                   <Route path="deals" element={<Deals />} />
                   <Route path="contracts" element={<Contracts />} />
+                  <Route path="payments" element={<Payments />} />
                   <Route path="system" element={<System />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
