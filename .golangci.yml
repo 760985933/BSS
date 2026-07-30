@@ -1,0 +1,25 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck      # 拦截“吞掉 error”（如 db.Count(&n).Error 未检查）
+    - errorlint     # 错误比较/断言的惯用法
+    - govet        # 标准 go vet
+    - ineffassign  # 无效赋值
+    - staticcheck  # 更深的静态分析（含 SA 系列）
+    - gosimple     # 简化代码
+    - unused       # 未使用代码
+    - bodyclose    # 未关闭的响应体
+    - unconvert    # 多余类型转换
+
+issues:
+  exclude-rules:
+    # 测试文件中允许忽略某些错误（如 t.Fatal 前的 err）
+    - path: _test\.go
+      linters:
+        - errcheck
+  max-issues-per-linter: 0
+  max-same-issues: 0

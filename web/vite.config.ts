@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
@@ -15,5 +16,12 @@ export default defineConfig({
     sourcemap: false,
     // 由 Makefile 负责精确清理，避免删除 Go embed 需要的 .gitkeep
     emptyOutDir: false,
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.ts'],
+    css: false,
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 })
