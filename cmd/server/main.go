@@ -45,6 +45,7 @@ func main() {
 	notifH := handlers.NewNotificationHandler(gdb)
 	apprH := handlers.NewApprovalHandler(services.NewApprovalService(gdb))
 	invH := handlers.NewInvoiceHandler(services.NewInvoiceService(gdb))
+	repH := handlers.NewReportHandler(services.NewReportService(gdb))
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -143,6 +144,13 @@ func main() {
 			r.Put("/invoices/{id}", invH.Update)
 			r.Delete("/invoices/{id}", invH.Delete)
 		})
+
+		// 报表中心（M2-3）：登录即可访问（数据范围由 ScopeOwner 控制）；CSV 导出为附件
+		r.Get("/reports/sign-trend", repH.SignTrend)
+		r.Get("/reports/payment-trend", repH.PaymentTrend)
+		r.Get("/reports/sales-rank", repH.SalesRank)
+		r.Get("/reports/funnel", repH.Funnel)
+		r.Get("/reports/export", repH.Export)
 
 		// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
 		r.Get("/contracts/{id}/plans", payH.ListPlans)

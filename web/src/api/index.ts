@@ -623,3 +623,63 @@ export const apiUpdateInvoice = (id: string, data: InvoiceInput) =>
   client.put<unknown, { message: string }>(`/invoices/${id}`, data)
 export const apiDeleteInvoice = (id: string) =>
   client.delete<unknown, { message: string }>(`/invoices/${id}`)
+
+// ---------- 报表中心（M2-3） ----------
+
+export interface MonthPoint {
+  month: string // YYYY-MM
+  amount_cent: number
+}
+
+export interface SignTrendResult {
+  rows: MonthPoint[]
+}
+
+export interface PaymentTrendResult {
+  rows: MonthPoint[]
+}
+
+export interface SalesRankRow {
+  owner_id: string
+  owner_name: string
+  won_deals: number
+  signed_cent: number
+  paid_cent: number
+}
+
+export interface SalesRankResult {
+  rows: SalesRankRow[]
+}
+
+export interface FunnelRow {
+  stage: string
+  label: string
+  count: number
+  amount_cent: number
+}
+
+export interface FunnelResult {
+  rows: FunnelRow[]
+}
+
+export type ReportType = 'sign_trend' | 'payment_trend' | 'sales_rank' | 'funnel'
+
+export const apiSignTrend = (months = 12) =>
+  client.get<unknown, SignTrendResult>('/reports/sign-trend', { params: { months } })
+export const apiPaymentTrend = (months = 12) =>
+  client.get<unknown, PaymentTrendResult>('/reports/payment-trend', { params: { months } })
+export const apiSalesRank = () =>
+  client.get<unknown, SalesRankResult>('/reports/sales-rank')
+export const apiFunnel = () =>
+  client.get<unknown, FunnelResult>('/reports/funnel')
+
+// CSV 导出：以 Blob 形式返回，由页面触发下载
+export const apiExportReport = (type: ReportType) =>
+  client.get<unknown, Blob>('/reports/export', { params: { type }, responseType: 'blob' })
+
+export const REPORT_LABEL: Record<ReportType, string> = {
+  sign_trend: '月度签约趋势',
+  payment_trend: '月度回款趋势',
+  sales_rank: '销售排行',
+  funnel: '客户转化漏斗',
+}
