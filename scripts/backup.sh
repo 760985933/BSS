@@ -1,31 +1,40 @@
-#!/bin/bash
-# BSS 备份脚本：SQLite 在线备份 + 附件打包（TECH_DESIGN §6.9）
-# 用法：./scripts/backup.sh [数据目录] [备份目录]
-# 建议 crontab 每日执行：0 2 * * * /path/to/scripts/backup.sh /data /backup
+#!/usr/bin/env bash
+# BSS SQLite 备份脚本
+# 用法：
+#   ./scripts/backup.sh [数据目录] [备份根目录]
+# 环境变量：BSS_DATA（默认 ./data），BACKUP_DIR（默认 <数据目录>/backups）
+#
+# 说明：SQLite 使用 WAL 模式，备份时一并复制 -wal / -shm 文件以保证一致性。
+# 建议：在服务器停止或低峰期执行；如需在线热备可改用 `sqlite3 bss.db ".backup"`.
+
 set -euo pipefail
 
-DATA_DIR="${1:-./data}"
-BACKUP_DIR="${2:-./backup}"
-KEEP=30
-TS=$(date +%Y%m%d_%H%M%S)
-DEST="$BACKUP_DIR/$TS"
+DATA_DIR="${1:-${BSS_DATA:-./data}}"
+BACKUP_ROOT="${2:-${BACKUP_DIR:-$DATA_DIR/backups}}"
 
-mkdir -p "$DEST"
-
-# SQLite 在线备份（WAL 模式下安全）
-if command -v sqlite3 >/dev/null 2>&1; then
-  sqlite3 "$DATA_DIR/bss.db" ".backup '$DEST/bss.db'"
-else
-  # 无 sqlite3 CLI 时退化为文件拷贝（服务低峰期可接受；WAL 一并拷贝）
-  cp "$DATA_DIR/bss.db" "$DEST/bss.db" 2>/dev/null || true
-  cp "$DATA_DIR/bss.db-wal" "$DEST/bss.db-wal" 2>/dev/null || true
-  cp "$DATA_DIR/bss.db-shm" "$DEST/bss.db-shm" 2>/dev/null || true
+DB="$DATA_DIR/bss.db"
+if [[ ! -f "$DB" ]]; then
+  echo "错误：找不到数据库文件 $DB" >&2
+  exit 1
 fi
 
-# 附件打包
-[ -d "$DATA_DIR/uploads" ] && tar -czf "$DEST/uploads.tar.gz" -C "$DATA_DIR" uploads
+TS="$(date +%Y%m%d-%H%M%S)"
+DEST="$BACKUP_ROOT/$TS"
+mkdir -p "$DEST"
 
-# 保留最近 KEEP 份
-ls -1dt "$BACKUP_DIR"/*/ 2>/dev/null | tail -n +$((KEEP + 1)) | xargs rm -rf 2>/dev/null || true
+# 复制主库及 WAL 附属文件（若存在）
+cp -p "$DB" "$DEST/bss.db"
+for ext in -wal -shm; do
+  if [[ -f "${DB}${ext}" ]]; then
+    cp -p "${DB}${ext}" "$DEST/bss.db${ext}"
+  fi
+done
 
-echo "备份完成: $DEST"
+# 保留最近 30 份
+if command -v ls >/dev/null 2>&1; then
+  ls -1dt "$BACKUP_ROOT"/*/ 2>/dev/null | tail -n +31 | xargs -r rm -rf
+fi
+
+echo "备份完成：$DEST"
+echo "当前备份列表："
+ls -1dt "$BACKUP_ROOT"/*/ 2>/dev/null | head

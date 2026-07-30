@@ -10,6 +10,7 @@ import (
 
 	bss "bss"
 	"bss/internal/config"
+	"bss/internal/cron"
 	"bss/internal/db"
 	"bss/internal/handlers"
 	"bss/internal/middleware"
@@ -41,6 +42,7 @@ func main() {
 	dealH := handlers.NewDealHandler(gdb)
 	contrH := handlers.NewContractHandler(gdb, filepath.Join(cfg.DataDir, "uploads"))
 	payH := handlers.NewPaymentHandler(gdb)
+	notifH := handlers.NewNotificationHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -112,6 +114,14 @@ func main() {
 		// 附件下载：鉴权组内，非登录不可下载
 		r.Get("/attachments/{id}/download", contrH.DownloadAttachment)
 
+		// 提醒 + 仪表盘：登录即可访问自己的通知；仪表盘按 ScopeOwner 过滤
+		r.Get("/notifications", notifH.List)
+		r.Get("/notifications/unread-count", notifH.UnreadCount)
+		r.Post("/notifications/{id}/read", notifH.MarkRead)
+		r.Post("/notifications/read-all", notifH.MarkAllRead)
+		r.Get("/dashboard", notifH.Dashboard)
+		r.With(middleware.RequireRole(models.RoleAdmin)).Post("/admin/scan-reminders", notifH.TriggerScan)
+
 		// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
 		r.Get("/contracts/{id}/plans", payH.ListPlans)
 		r.Get("/contracts/{id}/records", payH.ListRecords)
@@ -135,6 +145,9 @@ func main() {
 
 	// SPA 托管：静态资源直出，其余 GET 回退 index.html
 	r.Get("/*", spaHandler())
+
+	// 后台调度：每日 09:00 扫描到期/逾期生成提醒（随主进程生命周期）
+	cron.Start(context.Background(), gdb)
 
 	log.Printf("BSS 服务已启动: http://%s （数据目录: %s）", cfg.Addr, cfg.DataDir)
 	if err := http.ListenAndServe(cfg.Addr, r); err != nil {

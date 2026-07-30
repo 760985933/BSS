@@ -16,6 +16,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { apiChangePassword, apiMe } from '../api'
 import { useAuth } from '../auth/AuthContext'
+import NotificationBell from '../components/NotificationBell'
 
 const { Sider, Header, Content } = Layout
 
@@ -78,7 +79,8 @@ export default function MainLayout() {
         />
       </Sider>
       <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
+          <NotificationBell />
           <Dropdown
             menu={{
               items: [

@@ -443,3 +443,82 @@ export const apiDeleteRecord = (contractId: string, recordId: string) =>
 
 export const apiPaymentSummary = (contractId: string) =>
   client.get<unknown, PaymentSummary>(`/contracts/${contractId}/payment-summary`)
+
+// ---------- 提醒 / 仪表盘 ----------
+export interface Notification {
+  id: string
+  user_id: string
+  type: string // contract_expiring / payment_overdue
+  title: string
+  content: string
+  entity_type: string
+  entity_id: string
+  is_read: boolean
+  created_at: string
+}
+
+export interface NotificationPage {
+  items: Notification[]
+  total: number
+  page: number
+  size: number
+}
+
+export const NOTIF_TYPE: Record<string, { label: string; color: string }> = {
+  contract_expiring: { label: '合同到期', color: 'orange' },
+  payment_overdue: { label: '回款逾期', color: 'red' },
+}
+
+export const apiListNotifications = (params: { is_read?: boolean; type?: string; page?: number; size?: number }) =>
+  client.get<unknown, NotificationPage>('/notifications', { params })
+
+export const apiUnreadCount = () => client.get<unknown, { count: number }>('/notifications/unread-count')
+
+export const apiMarkNotificationRead = (id: string) =>
+  client.post<unknown, { message: string }>(`/notifications/${id}/read`)
+
+export const apiMarkAllRead = () => client.post<unknown, { message: string }>('/notifications/read-all')
+
+export interface ContractLite {
+  id: string
+  code: string
+  title: string
+  customer: string
+  amount_cent: number
+  expire_date: string
+  status: string
+}
+
+export interface PlanLite {
+  id: string
+  contract_code: string
+  period_no: number
+  due_date: string
+  amount_cent: number
+  paid_cent: number
+  outstanding_cent: number
+}
+
+export interface DealLite {
+  id: string
+  code: string
+  title: string
+  customer: string
+  amount_cent: number
+  probability: number
+  status: string
+}
+
+export interface DashboardData {
+  cards: {
+    signed_this_month_cent: number
+    paid_this_month_cent: number
+    open_deals: number
+    overdue_amount_cent: number
+  }
+  expiring_contracts: ContractLite[]
+  overdue_plans: PlanLite[]
+  recent_won_deals: DealLite[]
+}
+
+export const apiDashboard = () => client.get<unknown, DashboardData>('/dashboard')
