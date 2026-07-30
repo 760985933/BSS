@@ -683,3 +683,56 @@ export const REPORT_LABEL: Record<ReportType, string> = {
   sales_rank: '销售排行',
   funnel: '客户转化漏斗',
 }
+
+// ---------- 审计查询 + 离职交接（M2-4） ----------
+
+export interface AuditLog {
+  id: string
+  entity_type: string
+  entity_id: string
+  action: string // create/update/delete/transfer/status_change/offboard
+  operator_id: string
+  before_json: string
+  after_json: string
+  created_at: string
+}
+
+export interface AuditQuery {
+  entity_type?: string
+  entity_id?: string
+  action?: string
+  operator_id?: string
+  start?: string // YYYY-MM-DD
+  end?: string // YYYY-MM-DD
+  page?: number
+  size?: number
+}
+
+export const AUDIT_ACTION: Record<string, { label: string; color: string }> = {
+  create: { label: '新建', color: 'blue' },
+  update: { label: '修改', color: 'gold' },
+  delete: { label: '删除', color: 'red' },
+  transfer: { label: '转移', color: 'cyan' },
+  status_change: { label: '状态变更', color: 'geekblue' },
+  offboard: { label: '离职交接', color: 'purple' },
+}
+
+export const apiListAuditLogs = (q: AuditQuery = {}) =>
+  client.get<unknown, PageData<AuditLog>>('/audit-logs', { params: q })
+
+export interface OffboardPreview {
+  active: boolean
+  has_data: boolean
+  customers: number
+  deals: number
+  contracts: number
+}
+
+export const apiOffboardPreview = (id: string) =>
+  client.get<unknown, OffboardPreview>(`/employees/${id}/offboard-preview`)
+
+export const apiOffboard = (id: string, successor_id: string) =>
+  client.post<unknown, { result: { customers: number; deals: number; contracts: number }; message: string }>(
+    `/employees/${id}/offboard`,
+    { successor_id },
+  )

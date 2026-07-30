@@ -38,6 +38,7 @@ func main() {
 
 	authH := handlers.NewAuthHandler(authSvc, cfg.JWTSecret)
 	empH := handlers.NewEmployeeHandler(gdb)
+	audH := handlers.NewAuditHandler(services.NewAuditQueryService(gdb))
 	custH := handlers.NewCustomerHandler(gdb)
 	dealH := handlers.NewDealHandler(gdb)
 	contrH := handlers.NewContractHandler(gdb, filepath.Join(cfg.DataDir, "uploads"))
@@ -66,6 +67,8 @@ func main() {
 				r.Post("/employees", empH.Create)
 				r.Put("/employees/{id}", empH.Update)
 				r.Post("/employees/{id}/status", empH.SetStatus)
+				r.Get("/employees/{id}/offboard-preview", empH.OffboardPreview)
+				r.Post("/employees/{id}/offboard", empH.Offboard)
 			})
 			r.With(middleware.RequireRole(models.RoleAdmin)).Post("/employees/{id}/reset-password", empH.ResetPassword)
 
@@ -151,6 +154,9 @@ func main() {
 		r.Get("/reports/sales-rank", repH.SalesRank)
 		r.Get("/reports/funnel", repH.Funnel)
 		r.Get("/reports/export", repH.Export)
+
+		// 审计查询（M2-4）：仅管理/监督角色（admin/hr/finance）；全局合规日志，不做行级过滤
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleHR, models.RoleFinance)).Get("/audit-logs", audH.List)
 
 		// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
 		r.Get("/contracts/{id}/plans", payH.ListPlans)

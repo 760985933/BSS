@@ -122,6 +122,45 @@ func (h *EmployeeHandler) ResetPassword(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// OffboardPreview GET /api/v1/employees/:id/offboard-preview —— 交接前预览待转移数据量
+func (h *EmployeeHandler) OffboardPreview(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	prev, err := h.svc.OffboardPreview(r.Context(), id)
+	if err != nil {
+		h.failSvc(w, err)
+		return
+	}
+	resp.OK(w, prev)
+}
+
+// Offboard POST /api/v1/employees/:id/offboard  {successor_id} —— 转移名下数据并停用
+func (h *EmployeeHandler) Offboard(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		SuccessorID uint `json:"successor_id,string"` // 前端以字符串传递，与 customer.Transfer 一致
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Fail(w, http.StatusBadRequest, resp.CodeBadRequest, "请求格式错误")
+		return
+	}
+	c := middleware.UserFrom(r.Context())
+	res, err := h.svc.Offboard(r.Context(), id, req.SuccessorID, c.UserID)
+	if err != nil {
+		h.failSvc(w, err)
+		return
+	}
+	resp.OK(w, map[string]any{
+		"result":  res,
+		"message": "已将该员工名下数据转移给交接人并停用账号",
+	})
+}
+
 // ---------- 数据字典 ----------
 
 // ListDicts GET /api/v1/dicts?type=dept（全员可读）
@@ -181,7 +220,9 @@ func (h *EmployeeHandler) failSvc(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, services.ErrEmailExists), errors.Is(err, services.ErrInvalidRole):
 		resp.Fail(w, http.StatusConflict, resp.CodeConflict, err.Error())
-	case errors.Is(err, services.ErrLastAdmin), errors.Is(err, services.ErrCannotSelfOp):
+	case errors.Is(err, services.ErrLastAdmin), errors.Is(err, services.ErrCannotSelfOp),
+		errors.Is(err, services.ErrOffboardSameEmployee), errors.Is(err, services.ErrSuccessorMissing),
+		errors.Is(err, services.ErrSuccessorNotActive):
 		resp.Fail(w, http.StatusUnprocessableEntity, resp.CodeBadRequest, err.Error())
 	case errors.Is(err, services.ErrEmployeeMissing):
 		resp.Fail(w, http.StatusNotFound, resp.CodeNotFound, err.Error())

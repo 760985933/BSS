@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   apiListEmployees, apiCreateEmployee, apiUpdateEmployee, apiSetEmployeeStatus,
   apiResetEmployeePassword, apiListDicts, apiMe,
+  apiOffboardPreview, apiOffboard, OffboardPreview,
   Employee, EmployeeInput,
 } from '../api'
 
@@ -25,6 +26,9 @@ export default function Employees() {
   const [keyword, setKeyword] = useState('')
   const [editing, setEditing] = useState<Employee | null>(null)
   const [creating, setCreating] = useState(false)
+  const [obTarget, setObTarget] = useState<Employee | null>(null)
+  const [obPreview, setObPreview] = useState<OffboardPreview | null>(null)
+  const [obSuccessor, setObSuccessor] = useState<string>('')
   const [form] = Form.useForm()
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: apiMe })
@@ -75,6 +79,36 @@ export default function Employees() {
     },
   })
 
+  // 离职交接：停用前先预览名下数据，有数据则弹窗选交接人
+  const previewMut = useMutation({
+    mutationFn: (e: Employee) => apiOffboardPreview(e.id),
+    onSuccess: (prev, e) => {
+      if (!prev.has_data) {
+        statusMut.mutate({ id: e.id, active: false })
+      } else {
+        setObTarget(e)
+        setObPreview(prev)
+        setObSuccessor('')
+      }
+    },
+    onError: (err: any) => message.error(err?.response?.data?.message || '查询交接信息失败'),
+  })
+
+  const offboardMut = useMutation({
+    mutationFn: ({ id, successor }: { id: string; successor: string }) => apiOffboard(id, successor),
+    onSuccess: () => {
+      message.success('已转移名下数据并停用账号')
+      setObTarget(null)
+      setObPreview(null)
+      invalidate()
+    },
+    onError: (err: any) => message.error(err?.response?.data?.message || '交接失败'),
+  })
+
+  const successorOptions = (data?.list || [])
+    .filter((e) => obTarget && e.id !== obTarget.id && e.status === 'active')
+    .map((e) => ({ value: e.id, label: `${e.name}（${e.email}）` }))
+
   const openEdit = (e: Employee) => {
     setEditing(e)
     form.setFieldsValue({ name: e.name, phone: e.phone, dept: e.dept, position: e.position, role: e.role, email: e.email })
@@ -124,15 +158,15 @@ export default function Employees() {
                 render: (_: unknown, e: Employee) => (
                   <Space size="small">
                     <Button size="small" type="link" onClick={() => openEdit(e)}>编辑</Button>
-                    {e.status === 'active' ? (
-                      <Popconfirm title="停用后该账号无法登录" onConfirm={() => statusMut.mutate({ id: e.id, active: false })}>
+                    {e.status === 'active' && e.id !== me?.id ? (
+                      <Popconfirm title="停用前将检查名下数据；若有数据需先交接" onConfirm={() => previewMut.mutate(e)}>
                         <Button size="small" type="link" danger>停用</Button>
                       </Popconfirm>
-                    ) : (
+                    ) : e.status !== 'active' ? (
                       <Button size="small" type="link" onClick={() => statusMut.mutate({ id: e.id, active: true })}>
                         <ReloadOutlined /> 启用
                       </Button>
-                    )}
+                    ) : null}
                     {isAdmin && (
                       <Popconfirm title="重置为初始密码？" onConfirm={() => resetMut.mutate(e.id)}>
                         <Button size="small" type="link">重置密码</Button>
@@ -182,6 +216,33 @@ export default function Employees() {
             <Select options={roleOptions} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="离职交接"
+        open={!!obTarget}
+        onCancel={() => { setObTarget(null); setObPreview(null) }}
+        okText="确认交接并停用"
+        okButtonProps={{ disabled: !obSuccessor }}
+        confirmLoading={offboardMut.isPending}
+        onOk={() => obTarget && offboardMut.mutate({ id: obTarget.id, successor: obSuccessor })}
+      >
+        <p>该员工名下有数据需在停用前转移给交接人：</p>
+        <ul>
+          <li>客户：{obPreview?.customers ?? 0} 个</li>
+          <li>商单：{obPreview?.deals ?? 0} 个</li>
+          <li>合同：{obPreview?.contracts ?? 0} 个</li>
+        </ul>
+        <Form.Item label="交接人（启用状态的员工）" required style={{ marginTop: 12 }}>
+          <Select
+            placeholder="选择交接人"
+            value={obSuccessor || undefined}
+            onChange={setObSuccessor}
+            options={successorOptions}
+            showSearch
+            optionFilterProp="label"
+          />
+        </Form.Item>
       </Modal>
     </div>
   )

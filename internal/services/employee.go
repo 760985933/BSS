@@ -2,9 +2,11 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"bss/internal/models"
 
@@ -22,6 +24,9 @@ var (
 	ErrLastAdmin       = errors.New("系统至少保留一个启用状态的管理员")
 	ErrCannotSelfOp    = errors.New("不能对自己执行此操作")
 	ErrEmployeeMissing = errors.New("员工不存在")
+	ErrOffboardSameEmployee = errors.New("交接人不能是本人")
+	ErrSuccessorMissing     = errors.New("请选择交接人")
+	ErrSuccessorNotActive   = errors.New("交接人必须是启用状态的员工")
 )
 
 var validRoles = map[string]bool{
@@ -193,4 +198,124 @@ func (s *EmployeeService) RemoveDict(ctx context.Context, id uint) error {
 		}
 	}
 	return s.db.WithContext(ctx).Delete(&d).Error
+}
+
+// ---------- 离职交接（M2-4） ----------
+
+// OffboardPreview 交接预览：目标员工是否在职、名下待转移数据量。
+type OffboardPreview struct {
+	Active      bool  `json:"active"`
+	HasData     bool  `json:"has_data"`
+	Customers   int64 `json:"customers"`
+	Deals       int64 `json:"deals"`
+	Contracts   int64 `json:"contracts"`
+}
+
+// OffboardResult 交接结果（供前端提示）
+type OffboardResult struct {
+	Customers int64 `json:"customers"`
+	Deals     int64 `json:"deals"`
+	Contracts int64 `json:"contracts"`
+}
+
+func (s *EmployeeService) countOwned(ctx context.Context, empID uint) (customers, deals, contracts int64, err error) {
+	if e := s.db.WithContext(ctx).Model(&models.Customer{}).Where("owner_id = ?", empID).Count(&customers).Error; e != nil {
+		return 0, 0, 0, e
+	}
+	if e := s.db.WithContext(ctx).Model(&models.Deal{}).Where("owner_id = ?", empID).Count(&deals).Error; e != nil {
+		return 0, 0, 0, e
+	}
+	if e := s.db.WithContext(ctx).Model(&models.Contract{}).Where("owner_id = ?", empID).Count(&contracts).Error; e != nil {
+		return 0, 0, 0, e
+	}
+	return
+}
+
+// OffboardPreview 返回交接前预览信息。
+func (s *EmployeeService) OffboardPreview(ctx context.Context, empID uint) (*OffboardPreview, error) {
+	var emp models.Employee
+	if err := s.db.WithContext(ctx).Take(&emp, empID).Error; err != nil {
+		return nil, ErrEmployeeMissing
+	}
+	c, d, ct, err := s.countOwned(ctx, empID)
+	if err != nil {
+		return nil, err
+	}
+	return &OffboardPreview{
+		Active:    emp.Status == "active",
+		HasData:   c+d+ct > 0,
+		Customers: c, Deals: d, Contracts: ct,
+	}, nil
+}
+
+// Offboard 离职交接：将名下客户/商单/合同转移给交接人，并停用该员工（事务内 + 审计）。
+// operatorID 为执行人（写入审计）。
+func (s *EmployeeService) Offboard(ctx context.Context, empID, successorID, operatorID uint) (*OffboardResult, error) {
+	if empID == successorID {
+		return nil, ErrOffboardSameEmployee
+	}
+	var emp, succ models.Employee
+	if err := s.db.WithContext(ctx).Take(&emp, empID).Error; err != nil {
+		return nil, ErrEmployeeMissing
+	}
+	if err := s.db.WithContext(ctx).Take(&succ, successorID).Error; err != nil {
+		return nil, ErrSuccessorMissing
+	}
+	if succ.Status != "active" {
+		return nil, ErrSuccessorNotActive
+	}
+	// 不能交接自己（停自己）
+	if empID == operatorID {
+		return nil, ErrCannotSelfOp
+	}
+	// 若目标是最后的 admin，禁止停用
+	if emp.Role == models.RoleAdmin {
+		if err := s.ensureAnotherAdmin(ctx, empID); err != nil {
+			return nil, err
+		}
+	}
+	c, d, ct, err := s.countOwned(ctx, empID)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := s.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	// 批量转移（不触发逐行审计，改用下方汇总审计）
+	if err := tx.Model(&models.Customer{}).Where("owner_id = ?", empID).Update("owner_id", successorID).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := tx.Model(&models.Deal{}).Where("owner_id = ?", empID).Update("owner_id", successorID).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := tx.Model(&models.Contract{}).Where("owner_id = ?", empID).Update("owner_id", successorID).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	// 停用员工
+	if err := tx.Model(&models.Employee{}).Where("id = ?", empID).Update("status", "disabled").Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	// 汇总审计：记录交接动作
+	afterJSON, _ := json.Marshal(map[string]any{
+		"successor_id": successorID,
+		"counts":       map[string]int64{"customers": c, "deals": d, "contracts": ct},
+	})
+	if err := tx.Exec(
+		`INSERT INTO audit_logs (entity_type, entity_id, action, operator_id, before_json, after_json, created_at)
+		 VALUES (?, ?, 'offboard', ?, '', ?, ?)`,
+		"employee", empID, operatorID, string(afterJSON), time.Now().UTC(),
+	).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+	return &OffboardResult{Customers: c, Deals: d, Contracts: ct}, nil
 }
