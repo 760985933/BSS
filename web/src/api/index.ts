@@ -579,3 +579,47 @@ export const apiApproveApproval = (id: string) =>
   client.post<unknown, unknown>(`/approvals/${id}/approve`)
 export const apiRejectApproval = (id: string, reason: string) =>
   client.post<unknown, unknown>(`/approvals/${id}/reject`, { reason })
+
+// ---------- 开票管理（M2-2） ----------
+
+export type InvoiceStatus = 'draft' | 'issued' | 'voided'
+
+export interface Invoice {
+  id: string
+  code: string
+  contract_id: string
+  contract?: { id: string; code: string; title: string }
+  payment_record_id: string | null
+  amount_cent: number
+  status: InvoiceStatus
+  issued_at: string
+  remark: string
+  created_by: string
+  created_at: string
+}
+
+export interface InvoiceInput {
+  contract_id: string
+  payment_record_id?: string | null
+  amount_cent: number
+  remark?: string
+}
+
+export const INVOICE_STATUS: Record<InvoiceStatus, { label: string; color: string }> = {
+  draft: { label: '待开', color: 'default' },
+  issued: { label: '已开', color: 'success' },
+  voided: { label: '已作废', color: 'default' },
+}
+
+export const apiListInvoices = (q: { page?: number; size?: number; contract_id?: string; status?: string } = {}) =>
+  client.get<unknown, { list: Invoice[]; total: number }>('/invoices', { params: q })
+export const apiCreateInvoice = (data: InvoiceInput) =>
+  client.post<unknown, Invoice>('/invoices', data)
+export const apiIssueInvoice = (id: string) =>
+  client.post<unknown, unknown>(`/invoices/${id}/issue`)
+export const apiVoidInvoice = (id: string) =>
+  client.post<unknown, unknown>(`/invoices/${id}/void`)
+export const apiUpdateInvoice = (id: string, data: InvoiceInput) =>
+  client.put<unknown, { message: string }>(`/invoices/${id}`, data)
+export const apiDeleteInvoice = (id: string) =>
+  client.delete<unknown, { message: string }>(`/invoices/${id}`)

@@ -8,6 +8,7 @@ import {
   FileDoneOutlined,
   DollarOutlined,
   AuditOutlined,
+  FileTextOutlined,
   SettingOutlined,
   LogoutOutlined,
   KeyOutlined,
@@ -62,6 +63,7 @@ export default function MainLayout() {
     { key: '/contracts', icon: <FileDoneOutlined />, label: '合同' },
     { key: '/payments', icon: <DollarOutlined />, label: '回款' },
     { key: '/approvals', icon: <AuditOutlined />, label: '审批' },
+    { key: '/invoices', icon: <FileTextOutlined />, label: '开票' },
     { key: '/employees', icon: <TeamOutlined />, label: '员工' },
     ...(me?.role === 'admin'
       ? [{ key: '/system', icon: <SettingOutlined />, label: '系统配置' }]

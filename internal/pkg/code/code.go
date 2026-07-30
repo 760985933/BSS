@@ -15,6 +15,7 @@ const (
 	PrefixDeal     = "SD"
 	PrefixContract = "HT"
 	PrefixApproval = "SP"
+	PrefixInvoice  = "KP"
 )
 
 // Generator 基于 code_counters 表的单号生成器

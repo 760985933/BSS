@@ -44,6 +44,7 @@ func main() {
 	payH := handlers.NewPaymentHandler(gdb)
 	notifH := handlers.NewNotificationHandler(gdb)
 	apprH := handlers.NewApprovalHandler(services.NewApprovalService(gdb))
+	invH := handlers.NewInvoiceHandler(services.NewInvoiceService(gdb))
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -130,6 +131,17 @@ func main() {
 		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleSalesLead)).Group(func(r chi.Router) {
 			r.Post("/approvals/{id}/approve", apprH.Approve)
 			r.Post("/approvals/{id}/reject", apprH.Reject)
+		})
+
+		// 开票管理（M2-2）：查看全角色（ScopeOwner）；新建/开票/作废/编辑/删除限管理员/财务/销售主管
+		r.Get("/invoices", invH.List)
+		r.Get("/invoices/{id}", invH.Get)
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleSalesLead)).Group(func(r chi.Router) {
+			r.Post("/invoices", invH.Create)
+			r.Post("/invoices/{id}/issue", invH.Issue)
+			r.Post("/invoices/{id}/void", invH.Void)
+			r.Put("/invoices/{id}", invH.Update)
+			r.Delete("/invoices/{id}", invH.Delete)
 		})
 
 		// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance

@@ -31,6 +31,10 @@ const (
 	// 40xx 审批流
 	CodeApprovalInvalid    = 4001 // 审批单非法（类型/对象状态不对/驳回缺原因）
 	CodeApprovalNotPending = 4002 // 审批单非待审状态，无法操作
+
+	// 41xx 开票
+	CodeInvoiceAmountExceed = 4101 // 开票累计金额超过合同额
+	CodeInvoiceInvalidState = 4102 // 开票状态流转非法
 )
 
 type Body struct {

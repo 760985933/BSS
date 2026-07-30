@@ -19,6 +19,7 @@ var auditedTables = map[string]bool{
 	"payment_plans":   true,
 	"payment_records": true,
 	"approvals":       true,
+	"invoices":        true,
 	"employees":       true,
 }
 

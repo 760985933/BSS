@@ -219,6 +219,26 @@ type Approval struct {
 	RejectReason string `json:"reject_reason"`
 }
 
+// 开票（M2-2）：与合同关联，金额受合同额约束
+const (
+	InvoiceDraft  = "draft"  // 待开
+	InvoiceIssued = "issued" // 已开
+	InvoiceVoided = "voided" // 已作废
+)
+
+type Invoice struct {
+	Base
+	Code           string    `gorm:"uniqueIndex" json:"code"`
+	ContractID     uint      `json:"contract_id,string"`
+	Contract       *Contract `gorm:"foreignKey:ContractID" json:"contract,omitempty"`
+	PaymentRecordID *uint    `json:"payment_record_id,string"` // 可选：关联回款记录用于对账
+	AmountCent     int64     `json:"amount_cent"`
+	Status         string    `json:"status"`
+	IssuedAt       string    `json:"issued_at"`
+	Remark         string    `json:"remark"`
+	CreatedBy      uint      `json:"created_by,string"`
+}
+
 type CodeCounter struct {
 	Prefix string `gorm:"primaryKey"`
 	Year   int    `gorm:"primaryKey"`
