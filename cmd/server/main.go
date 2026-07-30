@@ -47,6 +47,7 @@ func main() {
 	apprH := handlers.NewApprovalHandler(services.NewApprovalService(gdb))
 	invH := handlers.NewInvoiceHandler(services.NewInvoiceService(gdb))
 	repH := handlers.NewReportHandler(services.NewReportService(gdb))
+	poolH := handlers.NewPoolHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -92,6 +93,21 @@ func main() {
 				r.Put("/customers/{id}/contacts/{cid}", custH.UpdateContact)
 				r.Delete("/customers/{id}/contacts/{cid}", custH.DeleteContact)
 			})
+
+			// 客户公海池（M3-1）：公海列表/流水/规则全角色可读；领取与释放排除财务、HR；
+			// 指派与手动回收限 admin/主管；规则修改限 admin。
+			r.Get("/customer-pool", poolH.List)
+			r.Get("/customer-pool/settings", poolH.GetSettings)
+			r.Get("/customers/{id}/pool-logs", poolH.Logs)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/customers/{id}/claim", poolH.Claim)
+				r.Post("/customers/{id}/release", poolH.Release)
+			})
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/customer-pool/{id}/assign", poolH.Assign)
+				r.Post("/customer-pool/recycle", poolH.Recycle)
+			})
+			r.With(middleware.RequireRole(models.RoleAdmin)).Put("/customer-pool/settings", poolH.UpdateSettings)
 
 			// 商单：查看全角色（ScopeOwner）；增删改/状态流转排除财务（PRD §6）
 			r.Get("/deals", dealH.List)

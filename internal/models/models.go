@@ -77,9 +77,14 @@ type Customer struct {
 	Industry string `json:"industry"`
 	Source   string `json:"source"`
 	Level    string `json:"level"`
-	OwnerID  uint   `json:"owner_id,string"`
+	OwnerID  uint   `json:"owner_id,string"` // 0 = 无主，即公海客户
 	Owner    *Employee `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
 	Remark   string `json:"remark"`
+
+	// M3-1 公海池：支撑领取保护期与超时回收判定
+	LastFollowedAt *time.Time `json:"last_followed_at,omitempty"`
+	ClaimedAt      *time.Time `json:"claimed_at,omitempty"`
+	PoolReason     string     `json:"pool_reason"` // 进入公海的原因（release/recycle/offboard）
 }
 
 type Contact struct {
@@ -238,6 +243,46 @@ type Invoice struct {
 	Remark         string    `json:"remark"`
 	CreatedBy      uint      `json:"created_by,string"`
 }
+
+// 客户公海池（M3-1）
+const (
+	PoolActionClaim   = "claim"   // 销售从公海领取
+	PoolActionRelease = "release" // 负责人主动释放回公海
+	PoolActionRecycle = "recycle" // 规则超时自动/手动回收
+	PoolActionAssign  = "assign"  // 管理员从公海直接指派
+
+	PoolReasonRelease  = "主动释放"
+	PoolReasonNoFollow = "超期未跟进自动回收"
+	PoolReasonNoDeal   = "领取后长期未建商单自动回收"
+	PoolReasonOffboard = "负责人离职未指定交接人"
+)
+
+// CustomerPoolLog 公海流水：业务可查的领取/释放/回收轨迹（区别于通用 audit_logs）
+type CustomerPoolLog struct {
+	ID          uint      `gorm:"primaryKey" json:"id,string"`
+	CustomerID  uint      `json:"customer_id,string"`
+	Action      string    `json:"action"`
+	FromOwnerID uint      `json:"from_owner_id,string"`
+	ToOwnerID   uint      `json:"to_owner_id,string"`
+	OperatorID  uint      `json:"operator_id,string"` // 0 = 系统（定时回收）
+	Reason      string    `json:"reason"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (CustomerPoolLog) TableName() string { return "customer_pool_logs" }
+
+// PoolSettings 公海规则（单行，id 恒为 1）
+type PoolSettings struct {
+	ID               uint      `gorm:"primaryKey" json:"id,string"`
+	Enabled          bool      `json:"enabled"`             // 是否启用自动回收
+	MaxClaimPerSales int       `json:"max_claim_per_sales"` // 单个销售名下客户数上限（0=不限）
+	IdleDaysNoFollow int       `json:"idle_days_no_follow"` // 超过 N 天无跟进则回收（0=不启用该条）
+	IdleDaysNoDeal   int       `json:"idle_days_no_deal"`   // 领取后超过 N 天未建商单则回收（0=不启用该条）
+	ProtectDays      int       `json:"protect_days"`        // 领取后保护期内不回收
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+func (PoolSettings) TableName() string { return "pool_settings" }
 
 type CodeCounter struct {
 	Prefix string `gorm:"primaryKey"`

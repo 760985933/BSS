@@ -91,9 +91,13 @@ export interface Customer {
   source: string
   level: string
   remark: string
-  owner_id: string
+  owner_id: string // '0' 表示无主（公海客户）
   owner?: Employee
   created_at: string
+  // M3-1 公海池
+  last_followed_at?: string
+  claimed_at?: string
+  pool_reason?: string
 }
 
 export interface CustomerInput {
@@ -736,3 +740,77 @@ export const apiOffboard = (id: string, successor_id: string) =>
     `/employees/${id}/offboard`,
     { successor_id },
   )
+
+// ---------- 客户公海池（M3-1） ----------
+export interface PoolLog {
+  id: string
+  customer_id: string
+  action: string // claim/release/recycle/assign
+  from_owner_id: string
+  to_owner_id: string
+  operator_id: string
+  reason: string
+  created_at: string
+}
+
+export interface PoolSettings {
+  id: string
+  enabled: boolean
+  max_claim_per_sales: number
+  idle_days_no_follow: number
+  idle_days_no_deal: number
+  protect_days: number
+  updated_at: string
+}
+
+export interface RecycleItem {
+  customer_id: string
+  name: string
+  owner_id: string
+  reason: string
+}
+
+export interface RecycleResult {
+  total: number
+  items: RecycleItem[]
+}
+
+export interface PoolQuery {
+  page?: number
+  size?: number
+  keyword?: string
+  industry?: string
+  source?: string
+  level?: string
+}
+
+export const POOL_ACTION: Record<string, { label: string; color: string }> = {
+  claim: { label: '领取', color: 'green' },
+  release: { label: '释放', color: 'orange' },
+  recycle: { label: '回收', color: 'red' },
+  assign: { label: '指派', color: 'blue' },
+}
+
+export const apiListPool = (params: PoolQuery = {}) =>
+  client.get<unknown, PageData<Customer>>('/customer-pool', { params })
+
+export const apiClaimCustomer = (id: string) =>
+  client.post<unknown, { message: string }>(`/customers/${id}/claim`)
+
+export const apiReleaseCustomer = (id: string, reason?: string) =>
+  client.post<unknown, { message: string }>(`/customers/${id}/release`, { reason })
+
+export const apiAssignFromPool = (id: string, owner_id: string) =>
+  client.post<unknown, { message: string }>(`/customer-pool/${id}/assign`, { owner_id })
+
+export const apiRecyclePool = (dryRun = false) =>
+  client.post<unknown, RecycleResult>('/customer-pool/recycle' + (dryRun ? '?dry_run=1' : ''))
+
+export const apiPoolLogs = (id: string) =>
+  client.get<unknown, PoolLog[]>(`/customers/${id}/pool-logs`)
+
+export const apiGetPoolSettings = () =>
+  client.get<unknown, PoolSettings>('/customer-pool/settings')
+
+export const apiUpdatePoolSettings = (s: Omit<PoolSettings, 'id' | 'updated_at'>) =>
+  client.put<unknown, PoolSettings>('/customer-pool/settings', s)

@@ -26,7 +26,7 @@ func setupScopeDB(t *testing.T) (*gorm.DB, map[string]uint) {
 	}
 	for _, ddl := range []string{
 		`CREATE TABLE employees (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, phone TEXT DEFAULT '', dept TEXT DEFAULT '', position TEXT DEFAULT '', role TEXT, password_hash TEXT DEFAULT '', must_change_pwd INTEGER DEFAULT 0, status TEXT DEFAULT 'active', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
-		`CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
+		`CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', last_followed_at DATETIME, claimed_at DATETIME, pool_reason TEXT NOT NULL DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
 	} {
 		if err := db.Exec(ddl).Error; err != nil {
 			t.Fatal(err)

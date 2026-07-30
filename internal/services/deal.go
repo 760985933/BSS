@@ -110,6 +110,7 @@ func (s *DealService) Create(ctx context.Context, in DealInput, ownerID uint) (*
 	if err := s.db.WithContext(ctx).Create(&d).Error; err != nil {
 		return nil, err
 	}
+	TouchFollow(s.db, ctx, in.CustomerID) // 建商单视为一次跟进（M3-1 公海回收判定）
 	return &d, nil
 }
 
@@ -185,6 +186,7 @@ func (s *DealService) ChangeStatus(ctx context.Context, id uint, to, lostReason 
 	if err := s.db.WithContext(ctx).Model(&d).Updates(updates).Error; err != nil {
 		return nil, err
 	}
+	TouchFollow(s.db, ctx, d.CustomerID) // 推进商单阶段视为一次跟进
 	d.Status = to
 	if p, ok := updates["probability"]; ok {
 		d.Probability = p.(int)

@@ -2,15 +2,15 @@ import { useState } from 'react'
 import {
   Table, Tag, Typography, Button, Space, Modal, Form, Input, Select, Popconfirm, App,
 } from 'antd'
-import { PlusOutlined, SwapOutlined } from '@ant-design/icons'
+import { PlusOutlined, SwapOutlined, InboxOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import {
   apiListCustomers, apiCreateCustomer, apiUpdateCustomer, apiDeleteCustomer,
-  apiTransferCustomer, apiListDicts, apiListEmployees, apiMe,
-  Customer, CustomerInput, CustomerQuery,
+  apiTransferCustomer, apiReleaseCustomer, apiListDicts, apiListEmployees, apiMe,
 } from '../api'
+import type { Customer, CustomerInput, CustomerQuery } from '../api'
 
 export default function Customers() {
   const { message } = App.useApp()
@@ -52,6 +52,14 @@ export default function Customers() {
       message.success('已转移')
       setTransferTarget(null); setTransferOwner(undefined)
       invalidate()
+    },
+  })
+  const releaseMut = useMutation({
+    mutationFn: (id: string) => apiReleaseCustomer(id),
+    onSuccess: () => {
+      message.success('已释放到公海')
+      invalidate()
+      qc.invalidateQueries({ queryKey: ['pool'] })
     },
   })
 
@@ -108,12 +116,19 @@ export default function Customers() {
           { title: '创建时间', dataIndex: 'created_at', width: 110, render: (v) => dayjs(v).format('YYYY-MM-DD') },
           ...(canEdit
             ? [{
-                title: '操作', key: 'op', width: 200,
+                title: '操作', key: 'op', width: 280,
                 render: (_: unknown, c: Customer) => (
                   <Space size="small">
                     <Button size="small" type="link" onClick={() => openEdit(c)}>编辑</Button>
                     <Button size="small" type="link" icon={<SwapOutlined />}
                       onClick={() => { setTransferTarget(c); setTransferOwner(undefined) }}>转移</Button>
+                    <Popconfirm
+                      title="释放到公海"
+                      description="释放后该客户变为无主，其他销售可领取。有进行中商单或有效合同时不可释放。"
+                      onConfirm={() => releaseMut.mutate(c.id)}
+                    >
+                      <Button size="small" type="link" icon={<InboxOutlined />}>释放</Button>
+                    </Popconfirm>
                     <Popconfirm title="确认删除？名下有商单/合同的客户不可删" onConfirm={() => deleteMut.mutate(c.id)}>
                       <Button size="small" type="link" danger>删除</Button>
                     </Popconfirm>

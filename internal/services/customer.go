@@ -86,6 +86,9 @@ func (s *CustomerService) Update(ctx context.Context, id uint, in CustomerInput)
 	if res.RowsAffected == 0 {
 		return ErrCustomerMissing
 	}
+	if res.Error == nil {
+		TouchFollow(s.db, ctx, id) // 编辑客户视为一次跟进（M3-1 公海回收判定）
+	}
 	return res.Error
 }
 
@@ -175,6 +178,9 @@ func (s *CustomerService) CreateContact(ctx context.Context, customerID uint, in
 		}
 		return tx.Create(&ct).Error
 	})
+	if err == nil {
+		TouchFollow(s.db, ctx, customerID) // 新增联系人视为一次跟进
+	}
 	return &ct, err
 }
 

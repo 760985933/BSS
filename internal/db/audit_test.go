@@ -23,7 +23,7 @@ func setupAuditDB(t *testing.T) *gorm.DB {
 		sqlDB.SetMaxOpenConns(1)
 	}
 	for _, ddl := range []string{
-		`CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
+		`CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', last_followed_at DATETIME, claimed_at DATETIME, pool_reason TEXT NOT NULL DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
 		`CREATE TABLE audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT, entity_id INTEGER, action TEXT, operator_id INTEGER DEFAULT 0, before_json TEXT DEFAULT '', after_json TEXT DEFAULT '', created_at DATETIME)`,
 	} {
 		if err := gdb.Exec(ddl).Error; err != nil {

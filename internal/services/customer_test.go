@@ -73,7 +73,7 @@ func TestCreateHealthyPath(t *testing.T) {
 		sqlDB.SetMaxOpenConns(1)
 	}
 	for _, ddl := range []string{
-		`CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE, name TEXT UNIQUE, industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
+		`CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE, name TEXT UNIQUE, industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', last_followed_at DATETIME, claimed_at DATETIME, pool_reason TEXT NOT NULL DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
 		`CREATE TABLE code_counters (prefix TEXT NOT NULL, year INTEGER NOT NULL, seq INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (prefix, year))`,
 	} {
 		if err := db.Exec(ddl).Error; err != nil {

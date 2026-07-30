@@ -94,11 +94,39 @@ CREATE TABLE customers (
   code TEXT NOT NULL UNIQUE,               -- KH-2026-0001
   name TEXT NOT NULL UNIQUE,
   industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '',
-  owner_id INTEGER NOT NULL REFERENCES employees(id),
+  owner_id INTEGER NOT NULL,               -- 0 = 无主（公海客户）；非 0 时指向 employees(id)
   remark TEXT DEFAULT '',
+  -- M3-1 公海池
+  last_followed_at DATETIME,               -- 最后跟进时间（编辑客户/加联系人/建商单/推进阶段时刷新）
+  claimed_at DATETIME,                     -- 领取时间，用于保护期判定
+  pool_reason TEXT NOT NULL DEFAULT '',    -- 进入公海的原因
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 );
 CREATE INDEX idx_customers_owner ON customers(owner_id);
+CREATE INDEX idx_customers_pool ON customers(owner_id, last_followed_at);
+
+-- 公海流水（M3-1）：业务可查的领取/释放/回收轨迹，区别于通用 audit_logs
+CREATE TABLE customer_pool_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL,
+  action TEXT NOT NULL,                    -- claim/release/recycle/assign
+  from_owner_id INTEGER NOT NULL DEFAULT 0,
+  to_owner_id INTEGER NOT NULL DEFAULT 0,
+  operator_id INTEGER NOT NULL DEFAULT 0,  -- 0 = 系统（定时回收）
+  reason TEXT NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL
+);
+
+-- 公海规则（M3-1，单行配置）
+CREATE TABLE pool_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  enabled INTEGER NOT NULL DEFAULT 0,              -- 是否启用自动回收
+  max_claim_per_sales INTEGER NOT NULL DEFAULT 50, -- 单人持有上限（0=不限）
+  idle_days_no_follow INTEGER NOT NULL DEFAULT 30, -- 超 N 天无跟进回收（0=停用该条）
+  idle_days_no_deal INTEGER NOT NULL DEFAULT 60,   -- 领取后超 N 天未建商单回收（0=停用该条）
+  protect_days INTEGER NOT NULL DEFAULT 7,         -- 领取保护期
+  updated_at DATETIME NOT NULL
+);
 
 -- 联系人
 CREATE TABLE contacts (

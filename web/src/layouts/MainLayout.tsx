@@ -11,6 +11,7 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   FileSearchOutlined,
+  InboxOutlined,
   SettingOutlined,
   LogoutOutlined,
   KeyOutlined,
@@ -67,6 +68,7 @@ export default function MainLayout() {
     { key: '/approvals', icon: <AuditOutlined />, label: '审批' },
     { key: '/invoices', icon: <FileTextOutlined />, label: '开票' },
     { key: '/reports', icon: <BarChartOutlined />, label: '报表' },
+    { key: '/customer-pool', icon: <InboxOutlined />, label: '公海池' },
     ...(me?.role === 'admin' || me?.role === 'hr' || me?.role === 'finance'
       ? [{ key: '/audit', icon: <FileSearchOutlined />, label: '审计' }]
       : []),

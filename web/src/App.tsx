@@ -15,6 +15,7 @@ import Payments from './pages/Payments'
 import Approvals from './pages/Approvals'
 import Invoices from './pages/Invoices'
 import Reports from './pages/Reports'
+import CustomerPool from './pages/CustomerPool'
 import Audit from './pages/Audit'
 import System from './pages/System'
 import { ReactNode } from 'react'
@@ -56,6 +57,7 @@ export default function App() {
                   <Route path="approvals" element={<Approvals />} />
                   <Route path="invoices" element={<Invoices />} />
                   <Route path="reports" element={<Reports />} />
+                  <Route path="customer-pool" element={<CustomerPool />} />
                   <Route path="audit" element={<Audit />} />
                   <Route path="system" element={<System />} />
                 </Route>

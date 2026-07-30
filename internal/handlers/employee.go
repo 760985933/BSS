@@ -155,10 +155,11 @@ func (h *EmployeeHandler) Offboard(w http.ResponseWriter, r *http.Request) {
 		h.failSvc(w, err)
 		return
 	}
-	resp.OK(w, map[string]any{
-		"result":  res,
-		"message": "已将该员工名下数据转移给交接人并停用账号",
-	})
+	msg := "已将该员工名下数据转移给交接人并停用账号"
+	if req.SuccessorID == 0 {
+		msg = "已将该员工名下客户退回公海并停用账号"
+	}
+	resp.OK(w, map[string]any{"result": res, "message": msg})
 }
 
 // ---------- 数据字典 ----------
@@ -222,7 +223,7 @@ func (h *EmployeeHandler) failSvc(w http.ResponseWriter, err error) {
 		resp.Fail(w, http.StatusConflict, resp.CodeConflict, err.Error())
 	case errors.Is(err, services.ErrLastAdmin), errors.Is(err, services.ErrCannotSelfOp),
 		errors.Is(err, services.ErrOffboardSameEmployee), errors.Is(err, services.ErrSuccessorMissing),
-		errors.Is(err, services.ErrSuccessorNotActive):
+		errors.Is(err, services.ErrSuccessorNotActive), errors.Is(err, services.ErrSuccessorRequired):
 		resp.Fail(w, http.StatusUnprocessableEntity, resp.CodeBadRequest, err.Error())
 	case errors.Is(err, services.ErrEmployeeMissing):
 		resp.Fail(w, http.StatusNotFound, resp.CodeNotFound, err.Error())

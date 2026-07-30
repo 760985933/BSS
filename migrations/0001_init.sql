@@ -21,7 +21,7 @@ CREATE TABLE customers (
   code TEXT NOT NULL UNIQUE,                 -- KH-2026-0001
   name TEXT NOT NULL UNIQUE,
   industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '',
-  owner_id INTEGER NOT NULL REFERENCES employees(id),
+  owner_id INTEGER NOT NULL,
   remark TEXT DEFAULT '',
   created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, deleted_at DATETIME
 );

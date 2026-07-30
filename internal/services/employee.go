@@ -27,6 +27,7 @@ var (
 	ErrOffboardSameEmployee = errors.New("交接人不能是本人")
 	ErrSuccessorMissing     = errors.New("请选择交接人")
 	ErrSuccessorNotActive   = errors.New("交接人必须是启用状态的员工")
+	ErrSuccessorRequired    = errors.New("该员工名下有商单或合同，必须指定交接人（不能仅退回公海）")
 )
 
 var validRoles = map[string]bool{
@@ -249,20 +250,24 @@ func (s *EmployeeService) OffboardPreview(ctx context.Context, empID uint) (*Off
 }
 
 // Offboard 离职交接：将名下客户/商单/合同转移给交接人，并停用该员工（事务内 + 审计）。
-// operatorID 为执行人（写入审计）。
+// successorID = 0 表示不指定交接人，名下客户退回公海（M3-1）；但商单/合同不允许无主，
+// 此时若该员工仍有商单或合同，必须指定交接人。operatorID 为执行人（写入审计）。
 func (s *EmployeeService) Offboard(ctx context.Context, empID, successorID, operatorID uint) (*OffboardResult, error) {
-	if empID == successorID {
+	toPool := successorID == 0
+	if !toPool && empID == successorID {
 		return nil, ErrOffboardSameEmployee
 	}
 	var emp, succ models.Employee
 	if err := s.db.WithContext(ctx).Take(&emp, empID).Error; err != nil {
 		return nil, ErrEmployeeMissing
 	}
-	if err := s.db.WithContext(ctx).Take(&succ, successorID).Error; err != nil {
-		return nil, ErrSuccessorMissing
-	}
-	if succ.Status != "active" {
-		return nil, ErrSuccessorNotActive
+	if !toPool {
+		if err := s.db.WithContext(ctx).Take(&succ, successorID).Error; err != nil {
+			return nil, ErrSuccessorMissing
+		}
+		if succ.Status != "active" {
+			return nil, ErrSuccessorNotActive
+		}
 	}
 	// 不能交接自己（停自己）
 	if empID == operatorID {
@@ -278,13 +283,50 @@ func (s *EmployeeService) Offboard(ctx context.Context, empID, successorID, oper
 	if err != nil {
 		return nil, err
 	}
+	// 商单/合同不能无主
+	if toPool && (d > 0 || ct > 0) {
+		return nil, ErrSuccessorRequired
+	}
+
+	// 退公海时先取客户 ID，用于写公海流水
+	var poolIDs []uint
+	if toPool && c > 0 {
+		if err := s.db.WithContext(ctx).Model(&models.Customer{}).
+			Where("owner_id = ?", empID).Pluck("id", &poolIDs).Error; err != nil {
+			return nil, err
+		}
+	}
 
 	tx := s.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 	// 批量转移（不触发逐行审计，改用下方汇总审计）
-	if err := tx.Model(&models.Customer{}).Where("owner_id = ?", empID).Update("owner_id", successorID).Error; err != nil {
+	if toPool {
+		if err := tx.Model(&models.Customer{}).Where("owner_id = ?", empID).Updates(map[string]any{
+			"owner_id":    0,
+			"claimed_at":  nil,
+			"pool_reason": models.PoolReasonOffboard,
+		}).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		if len(poolIDs) > 0 {
+			now := time.Now().UTC()
+			logs := make([]models.CustomerPoolLog, 0, len(poolIDs))
+			for _, id := range poolIDs {
+				logs = append(logs, models.CustomerPoolLog{
+					CustomerID: id, Action: models.PoolActionRecycle,
+					FromOwnerID: empID, ToOwnerID: 0, OperatorID: operatorID,
+					Reason: models.PoolReasonOffboard, CreatedAt: now,
+				})
+			}
+			if err := tx.Create(&logs).Error; err != nil {
+				tx.Rollback()
+				return nil, err
+			}
+		}
+	} else if err := tx.Model(&models.Customer{}).Where("owner_id = ?", empID).Update("owner_id", successorID).Error; err != nil {
 		tx.Rollback()
 		return nil, err
 	}
