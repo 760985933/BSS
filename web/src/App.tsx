@@ -12,6 +12,7 @@ import CustomerDetail from './pages/CustomerDetail'
 import Deals from './pages/Deals'
 import Contracts from './pages/Contracts'
 import Payments from './pages/Payments'
+import Approvals from './pages/Approvals'
 import System from './pages/System'
 import { ReactNode } from 'react'
 
@@ -49,6 +50,7 @@ export default function App() {
                   <Route path="deals" element={<Deals />} />
                   <Route path="contracts" element={<Contracts />} />
                   <Route path="payments" element={<Payments />} />
+                  <Route path="approvals" element={<Approvals />} />
                   <Route path="system" element={<System />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />

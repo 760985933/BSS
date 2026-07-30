@@ -28,17 +28,19 @@ var (
 	ErrAttachmentMissing        = errors.New("附件不存在")
 )
 
-// 合同状态机（TECH_DESIGN §6.2：主线 draft→pending→signed→performing→completed；
-// 回退 pending→draft；旁路 cancelled(签约前)/terminated·expired(签约后)；approving 二期预留）
+// 合同状态机（TECH_DESIGN §6.2：主线 draft→pending→pending_approval→signed→performing→completed；
+// 回退 pending→draft；旁路 cancelled(签约前)/terminated·expired(签约后)。
+// pending_approval 为 M2-1 新增的签约审批节点：提交审批后等待审批通过，由审批服务推进至 signed）
 var contractFlow = map[string][]string{
-	models.ContractDraft:      {models.ContractPending, models.ContractCancelled},
-	models.ContractPending:    {models.ContractSigned, models.ContractDraft, models.ContractCancelled},
-	models.ContractSigned:     {models.ContractPerforming, models.ContractTerminated, models.ContractExpired},
-	models.ContractPerforming: {models.ContractCompleted, models.ContractTerminated, models.ContractExpired},
-	models.ContractCompleted:  {},
-	models.ContractCancelled:  {},
-	models.ContractTerminated: {},
-	models.ContractExpired:    {},
+	models.ContractDraft:         {models.ContractPending, models.ContractCancelled},
+	models.ContractPending:       {models.ContractPendingApproval, models.ContractDraft, models.ContractCancelled},
+	models.ContractPendingApproval: {models.ContractPending}, // 仅审批驳回/撤回回到 pending；signed 由审批服务推进
+	models.ContractSigned:        {models.ContractPerforming, models.ContractTerminated, models.ContractExpired},
+	models.ContractPerforming:    {models.ContractCompleted, models.ContractTerminated, models.ContractExpired},
+	models.ContractCompleted:     {},
+	models.ContractCancelled:     {},
+	models.ContractTerminated:    {},
+	models.ContractExpired:       {},
 }
 
 // contractLocked 终态（signed 及以后）：金额/客户/关联商单只读
@@ -205,6 +207,19 @@ func (s *ContractService) ChangeStatus(ctx context.Context, id uint, to, termina
 	}
 	c.Status = to
 	return &c, nil
+}
+
+// AdvanceToSigned 审批通过后的签约推进（仅能从 pending_approval 进入 signed）；
+// 普通 ChangeStatus 不允许 pending_approval→signed，强制签约须经审批流。
+func (s *ContractService) AdvanceToSigned(ctx context.Context, id uint) error {
+	var c models.Contract
+	if err := s.db.WithContext(ctx).Take(&c, id).Error; err != nil {
+		return ErrContractMissing
+	}
+	if c.Status != models.ContractPendingApproval {
+		return errors.New("合同未处于待审批(pending_approval)状态，无法签约")
+	}
+	return s.db.WithContext(ctx).Model(&c).Update("status", models.ContractSigned).Error
 }
 
 // ReplaceDeals 调整关联商单（PUT /contracts/:id/deals）：终态锁定拒绝；校验 won+同客户；写审计

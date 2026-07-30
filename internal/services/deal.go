@@ -20,11 +20,13 @@ var (
 )
 
 // 商单状态机（TECH_DESIGN §6.2：对齐 SF 6 态 + 回退边；won/lost 为终态）
+// negotiating 之后如需折扣审批，先进入 pending_approval（M2-1），审批通过后由审批服务推进至 won
 var dealFlow = map[string][]string{
-	models.DealProspecting: {models.DealQualifying, models.DealLost},
-	models.DealQualifying:  {models.DealProposal, models.DealProspecting, models.DealLost},
-	models.DealProposal:    {models.DealNegotiating, models.DealQualifying, models.DealLost},
-	models.DealNegotiating: {models.DealWon, models.DealProposal, models.DealLost},
+	models.DealProspecting:      {models.DealQualifying, models.DealLost},
+	models.DealQualifying:       {models.DealProposal, models.DealProspecting, models.DealLost},
+	models.DealProposal:         {models.DealNegotiating, models.DealQualifying, models.DealLost},
+	models.DealNegotiating:      {models.DealPendingApproval, models.DealProposal, models.DealLost},
+	models.DealPendingApproval:  {models.DealNegotiating}, // 仅审批驳回/撤回回到 negotiating；won 由审批服务推进
 }
 
 // 各阶段默认赢单概率（PRD §4.4）
@@ -184,8 +186,29 @@ func (s *DealService) ChangeStatus(ctx context.Context, id uint, to, lostReason 
 		return nil, err
 	}
 	d.Status = to
-	d.Probability = updates["probability"].(int)
+	if p, ok := updates["probability"]; ok {
+		d.Probability = p.(int)
+	}
 	return &d, nil
+}
+
+// ApplyDiscountAndWin 审批通过后的折扣赢单推进（仅能从 pending_approval 进入 won，并落定折扣金额）；
+// 普通 ChangeStatus 不允许 pending_approval→won，强制折扣须经审批流。
+func (s *DealService) ApplyDiscountAndWin(ctx context.Context, id uint, discountCent int64) error {
+	var d models.Deal
+	if err := s.db.WithContext(ctx).Take(&d, id).Error; err != nil {
+		return ErrDealMissing
+	}
+	if d.Status != models.DealPendingApproval {
+		return errors.New("商单未处于待审批(pending_approval)状态，无法赢单")
+	}
+	if discountCent < 0 {
+		return errors.New("折扣金额不能为负")
+	}
+	return s.db.WithContext(ctx).Model(&d).Updates(map[string]any{
+		"status":               models.DealWon,
+		"discount_amount_cent": discountCent,
+	}).Error
 }
 
 // Delete 软删除；终态保留历史、已关联合同禁删

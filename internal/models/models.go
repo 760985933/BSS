@@ -21,6 +21,7 @@ const (
 	DealQualifying   = "qualifying"
 	DealProposal     = "proposal"
 	DealNegotiating  = "negotiating"
+	DealPendingApproval = "pending_approval" // 折扣审批提交后，等待审批通过才能赢单
 	DealWon          = "won"
 	DealLost         = "lost"
 )
@@ -29,6 +30,7 @@ const (
 const (
 	ContractDraft      = "draft"
 	ContractPending    = "pending"
+	ContractPendingApproval = "pending_approval" // 签约审批提交后，等待审批通过才能签约
 	ContractSigned     = "signed"
 	ContractPerforming = "performing"
 	ContractCompleted  = "completed"
@@ -102,6 +104,7 @@ type Deal struct {
 	ExpectedSignDate string    `json:"expected_sign_date"`
 	Status           string    `json:"status"`
 	LostReason       string    `json:"lost_reason"`
+	DiscountAmountCent int64   `json:"discount_amount_cent"` // 审批通过的折扣金额（分）；0 表示无折扣
 	OwnerID          uint      `json:"owner_id,string"`
 	Owner            *Employee `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
 	Remark           string    `json:"remark"`
@@ -190,6 +193,30 @@ type AuditLog struct {
 	BeforeJSON string    `json:"before_json"`
 	AfterJSON  string    `json:"after_json"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+// 审批流（M2-1）：合同签约审批、商单折扣审批
+const (
+	ApprovalPending  = "pending"
+	ApprovalApproved = "approved"
+	ApprovalRejected = "rejected"
+
+	ApprovalContractSign = "contract_sign" // 合同签约审批
+	ApprovalDealDiscount = "deal_discount" // 商单折扣审批
+)
+
+type Approval struct {
+	Base
+	Code        string `gorm:"uniqueIndex" json:"code"`
+	EntityType  string `json:"entity_type"` // contract | deal
+	EntityID    uint   `json:"entity_id,string"`
+	Kind        string `json:"kind"` // contract_sign | deal_discount
+	Status      string `json:"status"`
+	ApplicantID uint   `json:"applicant_id,string"`
+	ApproverID  uint   `json:"approver_id,string"`
+	AmountCent  int64  `json:"amount_cent"` // 商单折扣金额（分）
+	Note        string `json:"note"`
+	RejectReason string `json:"reject_reason"`
 }
 
 type CodeCounter struct {

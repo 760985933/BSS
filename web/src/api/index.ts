@@ -522,3 +522,60 @@ export interface DashboardData {
 }
 
 export const apiDashboard = () => client.get<unknown, DashboardData>('/dashboard')
+
+// ---------- 审批流（M2-1） ----------
+
+export type ApprovalKind = 'contract_sign' | 'deal_discount'
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface Approval {
+  id: string
+  code: string
+  entity_type: 'contract' | 'deal'
+  entity_id: string
+  kind: ApprovalKind
+  status: ApprovalStatus
+  applicant_id: string
+  approver_id: string
+  amount_cent: number
+  note: string
+  reject_reason: string
+  created_at: string
+}
+
+export interface ApprovalQuery {
+  page?: number
+  size?: number
+  status?: ApprovalStatus
+  kind?: ApprovalKind
+  entity_type?: 'contract' | 'deal'
+}
+
+export interface ApprovalInput {
+  entity_type: 'contract' | 'deal'
+  entity_id: string
+  kind: ApprovalKind
+  amount_cent?: number
+  note?: string
+}
+
+export const APPROVAL_KIND: Record<ApprovalKind, string> = {
+  contract_sign: '合同签约',
+  deal_discount: '商单折扣',
+}
+export const APPROVAL_STATUS: Record<ApprovalStatus, { label: string; color: string }> = {
+  pending: { label: '待审批', color: 'processing' },
+  approved: { label: '已通过', color: 'success' },
+  rejected: { label: '已驳回', color: 'default' },
+}
+
+export const apiListApprovals = (q: ApprovalQuery = {}) =>
+  client.get<unknown, { list: Approval[]; total: number }>('/approvals', { params: q })
+export const apiGetApproval = (id: string) =>
+  client.get<unknown, Approval>(`/approvals/${id}`)
+export const apiCreateApproval = (input: ApprovalInput) =>
+  client.post<unknown, Approval>('/approvals', input)
+export const apiApproveApproval = (id: string) =>
+  client.post<unknown, unknown>(`/approvals/${id}/approve`)
+export const apiRejectApproval = (id: string, reason: string) =>
+  client.post<unknown, unknown>(`/approvals/${id}/reject`, { reason })

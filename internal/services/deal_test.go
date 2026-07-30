@@ -24,7 +24,7 @@ func setupDealDB(t *testing.T) *gorm.DB {
 	}
 	for _, ddl := range []string{
 		`CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE, name TEXT UNIQUE, industry TEXT DEFAULT '', source TEXT DEFAULT '', level TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
-		`CREATE TABLE deals (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE, customer_id INTEGER, title TEXT, amount_cent INTEGER DEFAULT 0, probability INTEGER DEFAULT 10, expected_sign_date TEXT, status TEXT DEFAULT 'prospecting', lost_reason TEXT DEFAULT '', owner_id INTEGER, remark TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
+		`CREATE TABLE deals (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE, customer_id INTEGER, title TEXT, amount_cent INTEGER DEFAULT 0, probability INTEGER DEFAULT 10, expected_sign_date TEXT, status TEXT DEFAULT 'prospecting', lost_reason TEXT DEFAULT '', discount_amount_cent INTEGER DEFAULT 0, owner_id INTEGER, remark TEXT DEFAULT '', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`,
 		`CREATE TABLE deal_contracts (id INTEGER PRIMARY KEY AUTOINCREMENT, deal_id INTEGER, contract_id INTEGER, created_at DATETIME, UNIQUE(deal_id, contract_id))`,
 		`CREATE TABLE code_counters (prefix TEXT NOT NULL, year INTEGER NOT NULL, seq INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (prefix, year))`,
 	} {
@@ -101,7 +101,8 @@ func TestDealTerminalLock(t *testing.T) {
 	svc.ChangeStatus(ctx, d.ID, models.DealQualifying, "", false)
 	svc.ChangeStatus(ctx, d.ID, models.DealProposal, "", false)
 	svc.ChangeStatus(ctx, d.ID, models.DealNegotiating, "", false)
-	if _, err := svc.ChangeStatus(ctx, d.ID, models.DealWon, "", false); err != nil {
+	svc.ChangeStatus(ctx, d.ID, models.DealPendingApproval, "", false)
+	if err := svc.ApplyDiscountAndWin(ctx, d.ID, 0); err != nil {
 		t.Fatal(err)
 	}
 	// won 后改金额被拒

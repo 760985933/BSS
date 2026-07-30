@@ -120,7 +120,8 @@ func TestContractSignedFlow(t *testing.T) {
 	ctx := context.Background()
 	ct, _ := svc.Create(ctx, ContractInput{CustomerID: s.custID, Title: "x", AmountCent: 1}, s.ownerID)
 	svc.ChangeStatus(ctx, ct.ID, models.ContractPending, "")
-	svc.ChangeStatus(ctx, ct.ID, models.ContractSigned, "")
+	svc.ChangeStatus(ctx, ct.ID, models.ContractPendingApproval, "")
+	svc.AdvanceToSigned(ctx, ct.ID)
 	if _, err := svc.ChangeStatus(ctx, ct.ID, models.ContractCompleted, ""); err != ErrContractInvalidTransition {
 		t.Fatalf("signed->completed 应非法, got %v", err)
 	}
@@ -143,7 +144,8 @@ func TestContractTerminateReason(t *testing.T) {
 	ctx := context.Background()
 	ct, _ := svc.Create(ctx, ContractInput{CustomerID: s.custID, Title: "x", AmountCent: 1}, s.ownerID)
 	svc.ChangeStatus(ctx, ct.ID, models.ContractPending, "")
-	svc.ChangeStatus(ctx, ct.ID, models.ContractSigned, "")
+	svc.ChangeStatus(ctx, ct.ID, models.ContractPendingApproval, "")
+	svc.AdvanceToSigned(ctx, ct.ID)
 	if _, err := svc.ChangeStatus(ctx, ct.ID, models.ContractTerminated, ""); err != ErrTerminateReasonRequired {
 		t.Fatalf("终止应必填原因, got %v", err)
 	}
@@ -164,7 +166,8 @@ func TestContractFieldLocked(t *testing.T) {
 	ctx := context.Background()
 	ct, _ := svc.Create(ctx, ContractInput{CustomerID: s.custID, Title: "x", AmountCent: 1000}, s.ownerID)
 	svc.ChangeStatus(ctx, ct.ID, models.ContractPending, "")
-	svc.ChangeStatus(ctx, ct.ID, models.ContractSigned, "")
+	svc.ChangeStatus(ctx, ct.ID, models.ContractPendingApproval, "")
+	svc.AdvanceToSigned(ctx, ct.ID)
 	if err := svc.Update(ctx, ct.ID, ContractInput{Title: "x", AmountCent: 9999}); err != ErrContractFieldLocked {
 		t.Fatalf("signed 后改金额应锁, got %v", err)
 	}
@@ -216,7 +219,8 @@ func TestContractDelete(t *testing.T) {
 	}
 	ct2, _ := svc.Create(ctx, ContractInput{CustomerID: s.custID, Title: "y", AmountCent: 1}, s.ownerID)
 	svc.ChangeStatus(ctx, ct2.ID, models.ContractPending, "")
-	svc.ChangeStatus(ctx, ct2.ID, models.ContractSigned, "")
+	svc.ChangeStatus(ctx, ct2.ID, models.ContractPendingApproval, "")
+	svc.AdvanceToSigned(ctx, ct2.ID)
 	if err := svc.Delete(ctx, ct2.ID); err != ErrContractLocked {
 		t.Fatalf("signed 应不可删, got %v", err)
 	}

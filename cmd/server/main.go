@@ -43,6 +43,7 @@ func main() {
 	contrH := handlers.NewContractHandler(gdb, filepath.Join(cfg.DataDir, "uploads"))
 	payH := handlers.NewPaymentHandler(gdb)
 	notifH := handlers.NewNotificationHandler(gdb)
+	apprH := handlers.NewApprovalHandler(services.NewApprovalService(gdb))
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -121,6 +122,15 @@ func main() {
 		r.Post("/notifications/read-all", notifH.MarkAllRead)
 		r.Get("/dashboard", notifH.Dashboard)
 		r.With(middleware.RequireRole(models.RoleAdmin)).Post("/admin/scan-reminders", notifH.TriggerScan)
+
+		// 审批流（M2-1）：登录即可查看；提交审批限销售/销售主管/管理员；审批通过/驳回限管理员/财务/销售主管
+		r.Get("/approvals", apprH.List)
+		r.Get("/approvals/{id}", apprH.Get)
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Post("/approvals", apprH.Create)
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleSalesLead)).Group(func(r chi.Router) {
+			r.Post("/approvals/{id}/approve", apprH.Approve)
+			r.Post("/approvals/{id}/reject", apprH.Reject)
+		})
 
 		// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
 		r.Get("/contracts/{id}/plans", payH.ListPlans)
