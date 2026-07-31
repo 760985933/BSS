@@ -390,6 +390,17 @@ type ProjectTask struct {
 	Sort         int       `json:"sort"`
 }
 
+// BankStatement 银行流水（M4-3 银企对账）
+type BankStatement struct {
+	Base
+	TransDate       string `json:"trans_date"`
+	Counterparty    string `json:"counterparty"`
+	AmountCent      int64  `json:"amount_cent"`
+	Direction       string `json:"direction"` // income 收 / expend 付
+	Summary         string `json:"summary"`
+	PaymentRecordID *uint  `json:"payment_record_id,string"` // 勾对的回款记录（空=未勾对）
+}
+
 // Dict 通用数据字典（type：dept/industry/source/level/pay_method）
 // 唯一性由 DB 部分索引 uq_dicts_type_value 保证（仅未删除行）
 type Dict struct {

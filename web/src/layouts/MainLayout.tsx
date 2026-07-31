@@ -11,6 +11,7 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   PieChartOutlined,
+  AccountBookOutlined,
   FileSearchOutlined,
   InboxOutlined,
   FileExcelOutlined,
@@ -82,6 +83,9 @@ export default function MainLayout() {
       : []),
     ...(me?.role === 'admin' || me?.role === 'sales_lead'
       ? [{ key: '/lost-analysis', icon: <PieChartOutlined />, label: '输单分析' }]
+      : []),
+    ...(me?.role === 'admin' || me?.role === 'finance'
+      ? [{ key: '/reconciliation', icon: <AccountBookOutlined />, label: '银企对账' }]
       : []),
     ...(me?.role === 'admin' || me?.role === 'hr' || me?.role === 'finance'
       ? [{ key: '/audit', icon: <FileSearchOutlined />, label: '审计' }]

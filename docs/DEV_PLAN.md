@@ -156,8 +156,12 @@
 - 前端：`web/src/pages/LostDealAnalysis.tsx`（三张 Card + Progress 条形），菜单「输单分析」限 admin/主管，图标 PieChartOutlined。
 - 验收：单测 `analysis_test.go`（reason/owner/month 聚合）+ `cmd/server/m2x_analysis_e2e_test.go`（httptest 端点）；`go test ./...`、`pnpm build` 全绿。
 
-### M4-3 银企对账（待做）
-- 新增银行流水录入，与回款记录逐笔匹配/勾对，输出未达账项。
+### M4-3 银企对账 ✅（2026-07-31）
+- 新增银行流水表 `bank_statements`（迁移 `0010_bank_statements.sql`）：交易日期 / 对方户名 / 金额 / 方向(收/付) / 摘要，及 `payment_record_id` 勾对关联（FK 到回款记录）。
+- 服务层 `Reconcile` 在事务内将流水关联到回款记录，并阻止**同一回款被多条流水勾对**；`Unreconcile` 取消勾对；`ReconciliationSummary` 输出未达账项——银行已收企业未收（income 且未勾对流水）、企业已收银行未收（未被任何流水勾对的回款记录）。
+- 端点（限 admin/finance）：`POST /bank-statements`、`GET /bank-statements`（可按 reconciled 过滤）、`POST /bank-statements/{id}/reconcile`、`POST /bank-statements/{id}/unreconcile`、`GET /reconciliation`。
+- 前端：`web/src/pages/BankReconciliation.tsx`（流水录入草稿 + 未达账项汇总 Alert + 流水列表勾对/取消），菜单「银企对账」限 admin/finance，图标 AccountBookOutlined。
+- 验收：单测 `reconciliation_test.go`（录入/勾对/重复勾对报错/未达账项）+ `cmd/server/m2x_reconciliation_e2e_test.go`（httptest 录入→勾对→汇总）；`go test ./...`、`pnpm build`、`make e2e` 全绿无回归。
 
 ---
 

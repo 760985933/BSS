@@ -1018,3 +1018,30 @@ export interface LostAnalysis {
 
 export const apiLostDealAnalysis = () =>
   client.get<unknown, LostAnalysis>('/reports/lost-analysis')
+
+// ---------- 银企对账（M4-3，admin/finance） ----------
+export interface BankStatement {
+  id: string
+  trans_date: string
+  counterparty: string
+  amount_cent: number
+  direction: 'income' | 'expend'
+  summary: string
+  payment_record_id?: string | null
+}
+
+export interface Reconciliation {
+  bank_only: { id: string; trans_date: string; counterparty: string; amount_cent: number; direction: string; summary: string }[]
+  company_only: { id: string; trans_date: string; amount_cent: number }[]
+}
+
+export const apiCreateBankStatements = (items: unknown[]) =>
+  client.post<unknown, { created: number }>('/bank-statements', items)
+export const apiListBankStatements = () =>
+  client.get<unknown, BankStatement[]>('/bank-statements')
+export const apiReconcile = (id: string, payment_record_id: string) =>
+  client.post<unknown, { message: string }>(`/bank-statements/${id}/reconcile`, { payment_record_id: Number(payment_record_id) })
+export const apiUnreconcile = (id: string) =>
+  client.post<unknown, { message: string }>(`/bank-statements/${id}/unreconcile`, {})
+export const apiReconciliation = () =>
+  client.get<unknown, Reconciliation>('/reconciliation')

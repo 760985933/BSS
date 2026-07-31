@@ -61,6 +61,7 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	dealH := handlers.NewDealHandler(gdb)
 	contrH := handlers.NewContractHandler(gdb, filepath.Join(cfg.DataDir, "uploads"))
 	payH := handlers.NewPaymentHandler(gdb)
+	recH := handlers.NewReconciliationHandler(gdb)
 	notifH := handlers.NewNotificationHandler(gdb)
 	apprH := handlers.NewApprovalHandler(services.NewApprovalService(gdb))
 	invH := handlers.NewInvoiceHandler(services.NewInvoiceService(gdb))
@@ -245,6 +246,14 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance)).Group(func(r chi.Router) {
 				r.Post("/contracts/{id}/records", payH.CreateRecords)
 				r.Delete("/contracts/{id}/records/{rid}", payH.DeleteRecord)
+			})
+			// 银企对账（M4-3）：限 admin/finance
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance)).Group(func(r chi.Router) {
+				r.Post("/bank-statements", recH.Create)
+				r.Get("/bank-statements", recH.List)
+				r.Post("/bank-statements/{id}/reconcile", recH.Reconcile)
+				r.Post("/bank-statements/{id}/unreconcile", recH.Unreconcile)
+				r.Get("/reconciliation", recH.Summary)
 			})
 		})
 
