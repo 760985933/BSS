@@ -994,3 +994,16 @@ export const apiTestNotifyChannel = (channel: NotifyChannel, to?: string) =>
 
 export const apiListNotifyLogs = (params: { channel?: string; status?: string; page?: number; size?: number }) =>
   client.get<unknown, PageData<NotifyLog>>('/notify-logs', { params })
+
+// ---------- 客户查重合并（M2 增强，admin） ----------
+export interface DuplicateGroup {
+  field: 'phone' | 'email'
+  value: string
+  customers: Customer[]
+}
+
+export const apiFindDuplicates = () =>
+  client.get<unknown, DuplicateGroup[]>('/customers/duplicates')
+
+export const apiMergeCustomers = (primary_id: number, secondary_id: number) =>
+  client.post<unknown, { message: string }>('/customers/merge', { primary_id, secondary_id })

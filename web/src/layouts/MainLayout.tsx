@@ -15,6 +15,7 @@ import {
   FileExcelOutlined,
   ProjectOutlined,
   BellOutlined,
+  CopyOutlined,
   SettingOutlined,
   LogoutOutlined,
   KeyOutlined,
@@ -85,6 +86,7 @@ export default function MainLayout() {
     ...(me?.role === 'admin'
       ? [
           { key: '/notify-channels', icon: <BellOutlined />, label: '通知渠道' },
+          { key: '/duplicates', icon: <CopyOutlined />, label: '客户查重' },
           { key: '/system', icon: <SettingOutlined />, label: '系统配置' },
         ]
       : []),
