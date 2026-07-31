@@ -16,6 +16,8 @@ import (
 const (
 	NotifContractExpiring = "contract_expiring"
 	NotifPaymentOverdue   = "payment_overdue"
+	NotifLaborExpiring    = "labor_contract_expiring"
+	NotifLaborProbation   = "labor_contract_probation"
 )
 
 // ScanReminders 每日定时扫描：合同 30 天内到期 + 回款逾期 → 写入 notifications。
@@ -93,6 +95,15 @@ func ScanReminders(ctx context.Context, db *gorm.DB, now time.Time) (int, error)
 			return created, err
 		}
 		fresh = append(fresh, n)
+		created++
+	}
+	// 3) 劳动合同到期 / 试用期转正
+	lcNotifs, err := ScanLaborContractReminders(ctx, db, now)
+	if err != nil {
+		return created, err
+	}
+	for i := range lcNotifs {
+		fresh = append(fresh, lcNotifs[i])
 		created++
 	}
 	return created, nil

@@ -18,6 +18,8 @@ const (
 	PrefixInvoice  = "KP"
 	PrefixProject  = "XM"
 	PrefixJobPost  = "JP"
+	PrefixLaborContract = "LC"
+	PrefixOnboarding    = "OB"
 )
 
 // Generator 基于 code_counters 表的单号生成器

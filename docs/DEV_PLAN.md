@@ -233,12 +233,13 @@ mkdir -p bss/{cmd/server,internal,migrations,web,data} && cd bss && go mod init 
 - **验收**：职位发布、候选人入库与阶段推进、漏斗看板数据正确；后端单测 + E2E 全绿
 - 已交付：migration `0011_recruitment.sql`、`models/recruitment.go`、`services/recruitment.go`、`handlers/recruitment.go`，前端 `pages/Recruitment.tsx`（职位/候选人/漏斗三 Tab），后端单测 `recruitment_test.go` + E2E `m6_recruitment_e2e_test.go` 全绿。
 
-### Sprint 2 · 劳动合同 + 入职管理（约 5 天）—— 首期优先
+### Sprint 2 · 劳动合同 + 入职管理（约 5 天）—— 首期优先 ✅ 已完成 (2026-07-31)
 - `labor_contracts` CRUD（关联 employee），状态机 draft→active→expired/renewed/terminated（terminated 必填原因）
 - `onboardings` 入职流程（步骤 profile/equip/training/probation，状态 pending/done），可关联 candidate→employee
 - 定时提醒挂 `ScanReminders`：合同 30 天内到期、试用期临近转正
 - 端点：`/labor-contracts`、`/onboardings`；数据范围 HR/admin
 - **验收**：合同生命周期 + 入职步骤推进 + 到期/转正提醒；单测 + E2E 全绿
+- 已交付：migration `0012_labor_contract_onboarding.sql`、`models/labor_contract.go`、`services/labor_contract.go`、`handlers/labor_contract.go`（HRHandler 合并劳动合同+入职）、`notification.go` 接入到期/转正扫描段；前端 `pages/Hr.tsx`（劳动合同/入职两 Tab，限 admin/hr）；后端单测 `labor_contract_test.go` + E2E `m6_hr_e2e_test.go` 全绿。
 
 ### Sprint 3 · 考勤排班 + 请假（约 5 天）—— 形态：仅排班+请假
 - `attendance_schedules` 排班表（按员工/星期/班别），`leave_requests` 请假申请 + 审批流（复用 M2 approvals 机制）

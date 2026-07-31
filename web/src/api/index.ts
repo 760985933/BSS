@@ -1138,3 +1138,105 @@ export const apiAdvanceCandidate = (id: string, stage: string, force: boolean) =
 
 export const apiCandidatesFunnel = (params?: { job_post_id?: string }) =>
   client.get<unknown, FunnelStage[]>('/candidates/funnel', { params })
+
+// ---------- 劳动合同 + 入职管理（M6-S2，admin/hr） ----------
+export interface LaborContract {
+  id: string
+  code: string
+  employee_id: string
+  employee?: { id: string; name: string }
+  type: string
+  start_date?: string
+  end_date?: string
+  sign_date?: string
+  probation_months: number
+  status: string
+  terminate_reason?: string
+  owner_id: string
+  owner?: { id: string; name: string }
+}
+
+export interface Onboarding {
+  id: string
+  code: string
+  employee_id: string
+  employee?: { id: string; name: string }
+  candidate_id?: string
+  candidate?: { id: string; name: string }
+  step_profile: string
+  step_equip: string
+  step_training: string
+  step_probation: string
+  status: string
+  owner_id: string
+}
+
+export interface LaborContractInput {
+  employee_id: string
+  type: string
+  start_date: string
+  end_date: string
+  sign_date: string
+  probation_months: number
+}
+
+export interface OnboardingInput {
+  employee_id: string
+  candidate_id?: string
+  step_profile: string
+  step_equip: string
+  step_training: string
+  step_probation: string
+}
+
+export const LC_STATUS: Record<string, { label: string; color: string }> = {
+  draft: { label: '草稿', color: 'default' },
+  active: { label: '生效中', color: 'green' },
+  expired: { label: '已到期', color: 'red' },
+  renewed: { label: '已续签', color: 'blue' },
+  terminated: { label: '已解除', color: 'volcano' },
+}
+
+export const LC_TYPE: Record<string, string> = {
+  fixed: '固定期限',
+  nonfixed: '无固定期限',
+  internship: '实习',
+  parttime: '兼职',
+}
+
+export const OB_STEP: Record<string, { label: string; color: string }> = {
+  pending: { label: '待办', color: 'default' },
+  done: { label: '完成', color: 'green' },
+}
+
+export const OB_STATUS: Record<string, { label: string; color: string }> = {
+  in_progress: { label: '进行中', color: 'processing' },
+  completed: { label: '已完成', color: 'green' },
+}
+
+export const apiListLaborContracts = (params?: { keyword?: string; status?: string; employee_id?: string }) =>
+  client.get<unknown, LaborContract[]>('/labor-contracts', { params })
+
+export const apiCreateLaborContract = (data: LaborContractInput) =>
+  client.post<unknown, LaborContract>('/labor-contracts', data)
+
+export const apiUpdateLaborContract = (id: string, data: LaborContractInput) =>
+  client.put<unknown, LaborContract>(`/labor-contracts/${id}`, data)
+
+export const apiDeleteLaborContract = (id: string) =>
+  client.delete<unknown, { message: string }>(`/labor-contracts/${id}`)
+
+export const apiTransitionContract = (id: string, data: { to: string; reason: string; force: boolean }) =>
+  client.post<unknown, LaborContract>(`/labor-contracts/${id}/transition`, data)
+
+export const apiListOnboardings = (params?: { keyword?: string; status?: string; employee_id?: string }) =>
+  client.get<unknown, Onboarding[]>('/onboardings', { params })
+
+export const apiCreateOnboarding = (data: OnboardingInput) =>
+  client.post<unknown, Onboarding>('/onboardings', data)
+
+export const apiUpdateOnboarding = (id: string, data: OnboardingInput) =>
+  client.put<unknown, Onboarding>(`/onboardings/${id}`, data)
+
+export const apiDeleteOnboarding = (id: string) =>
+  client.delete<unknown, { message: string }>(`/onboardings/${id}`)

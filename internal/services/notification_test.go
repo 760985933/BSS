@@ -24,6 +24,7 @@ func setupNotifDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(&models.Employee{}, &models.Customer{}, &models.Deal{},
 		&models.Contract{}, &models.DealContract{}, &models.Attachment{},
 		&models.PaymentPlan{}, &models.PaymentRecord{}, &models.Notification{},
+		&models.LaborContract{}, &models.Onboarding{},
 		&models.AuditLog{}); err != nil {
 		t.Fatal(err)
 	}

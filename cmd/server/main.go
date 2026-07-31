@@ -71,6 +71,7 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	projH := handlers.NewProjectHandler(gdb)
 	nchH := handlers.NewNotifyChannelHandler(gdb)
 	recruitH := handlers.NewRecruitmentHandler(gdb)
+	hrH := handlers.NewHRHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -270,8 +271,21 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 				r.Get("/candidates/{id}", recruitH.GetCandidate)
 				r.Put("/candidates/{id}", recruitH.UpdateCandidate)
 				r.Delete("/candidates/{id}", recruitH.DeleteCandidate)
-				r.Post("/candidates/{id}/advance", recruitH.AdvanceCandidate)
-			})
+			r.Post("/candidates/{id}/advance", recruitH.AdvanceCandidate)
+
+			// M6-S2 劳动合同 + 入职管理
+			r.Get("/labor-contracts", hrH.ListLaborContracts)
+			r.Post("/labor-contracts", hrH.CreateLaborContract)
+			r.Get("/labor-contracts/{id}", hrH.GetLaborContract)
+			r.Put("/labor-contracts/{id}", hrH.UpdateLaborContract)
+			r.Delete("/labor-contracts/{id}", hrH.DeleteLaborContract)
+			r.Post("/labor-contracts/{id}/transition", hrH.TransitionLaborContract)
+			r.Get("/onboardings", hrH.ListOnboardings)
+			r.Post("/onboardings", hrH.CreateOnboarding)
+			r.Get("/onboardings/{id}", hrH.GetOnboarding)
+			r.Put("/onboardings/{id}", hrH.UpdateOnboarding)
+			r.Delete("/onboardings/{id}", hrH.DeleteOnboarding)
+		})
 		})
 
 		// /api 下未匹配路径返回 JSON 404（而不是 SPA 页面）
