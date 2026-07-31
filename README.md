@@ -1,5 +1,7 @@
 # BSS 业务管理系统
 
+> 📖 English README: [README_EN.md](README_EN.md)
+
 面向 10–100 人服务型公司的轻量业务管理系统，打通 **获客 → 成交 → 签约 → 收钱** 完整闭环。
 
 - 技术栈：React 18 + TypeScript + AntD 5（前端）/ Go 1.25 + chi + GORM（后端）/ SQLite（WAL，纯 Go 驱动免 CGO）
