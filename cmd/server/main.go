@@ -66,6 +66,7 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	poolH := handlers.NewPoolHandler(gdb)
 	impH := handlers.NewImportHandler(gdb)
 	projH := handlers.NewProjectHandler(gdb)
+	nchH := handlers.NewNotifyChannelHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -161,6 +162,14 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 			r.Post("/notifications/read-all", notifH.MarkAllRead)
 			r.Get("/dashboard", notifH.Dashboard)
 			r.With(middleware.RequireRole(models.RoleAdmin)).Post("/admin/scan-reminders", notifH.TriggerScan)
+
+			// 通知渠道扩展（M3-4）：SMTP 邮件 + 企业微信 webhook，配置与日志仅 admin
+			r.With(middleware.RequireRole(models.RoleAdmin)).Group(func(r chi.Router) {
+				r.Get("/notify-settings", nchH.GetSettings)
+				r.Put("/notify-settings", nchH.UpdateSettings)
+				r.Post("/notify-settings/test", nchH.Test)
+				r.Get("/notify-logs", nchH.Logs)
+			})
 
 			// 审批流（M2-1）：登录即可查看；提交审批限销售/销售主管/管理员；审批通过/驳回限管理员/财务/销售主管
 			r.Get("/approvals", apprH.List)

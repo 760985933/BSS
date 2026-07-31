@@ -14,6 +14,7 @@ import {
   InboxOutlined,
   FileExcelOutlined,
   ProjectOutlined,
+  BellOutlined,
   SettingOutlined,
   LogoutOutlined,
   KeyOutlined,
@@ -82,7 +83,10 @@ export default function MainLayout() {
       : []),
     { key: '/employees', icon: <TeamOutlined />, label: '员工' },
     ...(me?.role === 'admin'
-      ? [{ key: '/system', icon: <SettingOutlined />, label: '系统配置' }]
+      ? [
+          { key: '/notify-channels', icon: <BellOutlined />, label: '通知渠道' },
+          { key: '/system', icon: <SettingOutlined />, label: '系统配置' },
+        ]
       : []),
   ]
 

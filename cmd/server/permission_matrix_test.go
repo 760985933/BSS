@@ -153,6 +153,19 @@ func TestPermissionMatrix(t *testing.T) {
 		// 通知后台扫描：仅 admin
 		p("POST", "/admin/scan-reminders", models.RoleAdmin),
 
+		// 通知渠道配置与外发日志（M3-4）：仅 admin
+		p("GET", "/notify-settings", models.RoleAdmin),
+		p("PUT", "/notify-settings", models.RoleAdmin),
+		p("POST", "/notify-settings/test", models.RoleAdmin),
+		p("GET", "/notify-logs", models.RoleAdmin),
+
+		// Excel 导入（M3-2）：排除财务、HR
+		p("GET", "/imports/customers/template", models.RoleAdmin, models.RoleSales, models.RoleSalesLead),
+		p("POST", "/imports/customers", models.RoleAdmin, models.RoleSales, models.RoleSalesLead),
+
+		// 项目/交付（M3-3）：新建限 admin/sales/sales_lead（单项目写操作另有 owner/成员校验）
+		p("POST", "/projects", models.RoleAdmin, models.RoleSales, models.RoleSalesLead),
+
 		// 审批流：提交 admin/sales/sales_lead；通过/驳回 admin/finance/sales_lead
 		p("POST", "/approvals", models.RoleAdmin, models.RoleSales, models.RoleSalesLead),
 		p("POST", "/approvals/1/approve", models.RoleAdmin, models.RoleFinance, models.RoleSalesLead),

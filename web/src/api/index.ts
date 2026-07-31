@@ -953,3 +953,44 @@ export const apiUpdateProjectTask = (id: string, tid: string, data: {
 
 export const apiRemoveProjectTask = (id: string, tid: string) =>
   client.delete<unknown, { message: string }>(`/projects/${id}/tasks/${tid}`)
+
+// ---------- 通知渠道（M3-4，admin） ----------
+export type NotifyChannel = 'email' | 'wecom'
+
+export interface NotifySettings {
+  email_enabled: boolean
+  smtp_host: string
+  smtp_port: number
+  smtp_username: string
+  smtp_password: string // 读取时为掩码，原样回传表示不修改
+  smtp_from: string
+  smtp_tls: boolean
+  wecom_enabled: boolean
+  wecom_webhook: string
+  types: string // 逗号分隔白名单，空=全部
+  updated_at: string
+}
+
+export interface NotifyLog {
+  id: string
+  channel: NotifyChannel
+  notification_id: string
+  user_id: string
+  target: string
+  title: string
+  status: 'success' | 'failed'
+  error: string
+  created_at: string
+}
+
+export const apiGetNotifySettings = () =>
+  client.get<unknown, NotifySettings>('/notify-settings')
+
+export const apiUpdateNotifySettings = (data: Partial<NotifySettings>) =>
+  client.put<unknown, NotifySettings>('/notify-settings', data)
+
+export const apiTestNotifyChannel = (channel: NotifyChannel, to?: string) =>
+  client.post<unknown, { message: string }>('/notify-settings/test', { channel, to })
+
+export const apiListNotifyLogs = (params: { channel?: string; status?: string; page?: number; size?: number }) =>
+  client.get<unknown, PageData<NotifyLog>>('/notify-logs', { params })

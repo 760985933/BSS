@@ -99,8 +99,7 @@
 
 ## M3 · 三期可选（按业务反馈）
 
-- 通知渠道扩展：邮件 → 企业微信 webhook（待排期）
-- Excel 数据导入、项目/交付管理 已在下方交付（见 M3-2 / M3-3）
+- 候选清单已全部交付：公海池（M3-1）、Excel 导入（M3-2）、项目/交付（M3-3）、通知渠道扩展（M3-4）
 
 > 完整候选清单统一维护在 **PRD 附录 A · Backlog**，此处不重复登记。
 
@@ -126,6 +125,15 @@
 - 端点：项目 CRUD + `/members`、`/tasks` 增删改查（限 admin/sales/sales_lead）。
 - 前端：`web/src/pages/Projects.tsx`（列表 + 新建/编辑 + Drawer 详情三 Tab：任务/里程碑/成员含人天汇总）。
 - 验收：`cmd/server/m3_e2e_test.go` 覆盖项目建/成员/任务/详情/删除全链路；`go test ./...` 与 `pnpm build` 全绿；`make e2e` 业务流回归 ALL PASS 无回归。
+
+### M3-4 通知渠道扩展 ✅（2026-07-31）
+- 站内信之外新增两个外发渠道：**SMTP 邮件**（隐式 TLS/STARTTLS 自适应，主题 RFC2047 编码、正文 base64）与**企业微信群机器人 webhook**（markdown 消息，校验 `errcode`）。
+- 迁移 `0009_notify_channels.sql`：`notify_settings` 单行配置（两渠道开关 + SMTP 参数 + webhook + 类型白名单）、`notify_logs` 外发日志（成功/失败均留痕，含错误原因）。
+- 派发挂在 `ScanReminders` 尾部（`defer dispatchAll`）：新生成的站内通知按开关同步外发；**渠道全关时零开销直接返回**，外发失败只写日志，绝不影响站内信与扫描本身。
+- 安全：`smtp_password` 不参与 JSON 序列化，读接口返回 `********` 掩码，PUT 回传掩码或留空表示「保持原值」。
+- 端点（仅 admin）：`GET/PUT /notify-settings`、`POST /notify-settings/test`（邮件可指定收件人，缺省发给自己）、`GET /notify-logs`。
+- 前端：`web/src/pages/NotifyChannels.tsx`（SMTP 表单 + webhook + 推送类型白名单 + 一键测试 + 外发日志表），菜单「通知渠道」限 admin。
+- 验收：单测 `notify_channel_test.go`（默认关闭/掩码保存/校验/白名单过滤/webhook 成功与 errcode 失败落日志/邮件打桩/报文编码）+ `cmd/server/m34_notify_e2e_test.go`（httptest 假 webhook 全链路）+ 权限矩阵补充 M3-2/3/4 端点；`go test ./...`、`pnpm build`、`make e2e` 全绿。
 
 ---
 

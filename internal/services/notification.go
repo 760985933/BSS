@@ -20,11 +20,14 @@ const (
 
 // ScanReminders 每日定时扫描：合同 30 天内到期 + 回款逾期 → 写入 notifications。
 // 通过 dedup_key（type|entity_id|关联日期）去重，同一实体每天最多一条。
+// 新建的通知会按配置外发到邮件/企业微信（M3-4，渠道默认关闭时零开销）。
 // 返回本次新建的通知数量。
 func ScanReminders(ctx context.Context, db *gorm.DB, now time.Time) (int, error) {
 	today := now.Format("2006-01-02")
 	limit := now.AddDate(0, 0, 30).Format("2006-01-02")
 	created := 0
+	var fresh []models.Notification
+	defer func() { dispatchAll(ctx, db, fresh) }()
 
 	// 1) 合同 30 天内到期（仅进行中的签约/履约状态）
 	var contracts []models.Contract
@@ -52,6 +55,7 @@ func ScanReminders(ctx context.Context, db *gorm.DB, now time.Time) (int, error)
 		if err := db.Create(&n).Error; err != nil {
 			return created, err
 		}
+		fresh = append(fresh, n)
 		created++
 	}
 
@@ -88,9 +92,21 @@ func ScanReminders(ctx context.Context, db *gorm.DB, now time.Time) (int, error)
 		if err := db.Create(&n).Error; err != nil {
 			return created, err
 		}
+		fresh = append(fresh, n)
 		created++
 	}
 	return created, nil
+}
+
+// dispatchAll 将新生成的通知外发到已启用渠道；失败只记日志，不影响站内信。
+func dispatchAll(ctx context.Context, db *gorm.DB, list []models.Notification) {
+	if len(list) == 0 {
+		return
+	}
+	svc := NewNotifyService(db)
+	for i := range list {
+		svc.Dispatch(ctx, &list[i])
+	}
 }
 
 func existsNotification(db *gorm.DB, key string) bool {

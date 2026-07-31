@@ -284,6 +284,51 @@ type PoolSettings struct {
 
 func (PoolSettings) TableName() string { return "pool_settings" }
 
+// 通知外发渠道（M3-4）
+const (
+	ChannelEmail = "email"
+	ChannelWecom = "wecom"
+
+	NotifySuccess = "success"
+	NotifyFailed  = "failed"
+)
+
+// NotifySettings 通知渠道配置（单行，id 恒为 1）。
+// SmtpPassword 不直接序列化，读接口返回掩码，避免明文回传前端。
+type NotifySettings struct {
+	ID           uint   `gorm:"primaryKey" json:"id,string"`
+	EmailEnabled bool   `json:"email_enabled"`
+	SmtpHost     string `json:"smtp_host"`
+	SmtpPort     int    `json:"smtp_port"`
+	SmtpUsername string `json:"smtp_username"`
+	SmtpPassword string `json:"-"` // 仅服务端使用
+	SmtpFrom     string `json:"smtp_from"`
+	SmtpTLS      bool   `gorm:"column:smtp_tls" json:"smtp_tls"`
+
+	WecomEnabled bool   `json:"wecom_enabled"`
+	WecomWebhook string `json:"wecom_webhook"`
+
+	Types     string    `json:"types"` // 逗号分隔的通知类型白名单，空=全部
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (NotifySettings) TableName() string { return "notify_settings" }
+
+// NotifyLog 外发日志（成功/失败都记录）
+type NotifyLog struct {
+	ID             uint      `gorm:"primaryKey" json:"id,string"`
+	Channel        string    `json:"channel"`
+	NotificationID uint      `json:"notification_id,string"`
+	UserID         uint      `json:"user_id,string"`
+	Target         string    `json:"target"`
+	Title          string    `json:"title"`
+	Status         string    `json:"status"`
+	Error          string    `json:"error"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+func (NotifyLog) TableName() string { return "notify_logs" }
+
 type CodeCounter struct {
 	Prefix string `gorm:"primaryKey"`
 	Year   int    `gorm:"primaryKey"`

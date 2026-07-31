@@ -20,6 +20,7 @@ import ImportCustomers from './pages/ImportCustomers'
 import Projects from './pages/Projects'
 import Audit from './pages/Audit'
 import System from './pages/System'
+import NotifyChannels from './pages/NotifyChannels'
 import { ReactNode } from 'react'
 
 const queryClient = new QueryClient({
@@ -64,6 +65,7 @@ export default function App() {
                   <Route path="projects" element={<Projects />} />
                   <Route path="audit" element={<Audit />} />
                   <Route path="system" element={<System />} />
+                  <Route path="notify-channels" element={<NotifyChannels />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
