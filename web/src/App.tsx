@@ -16,6 +16,8 @@ import Approvals from './pages/Approvals'
 import Invoices from './pages/Invoices'
 import Reports from './pages/Reports'
 import CustomerPool from './pages/CustomerPool'
+import ImportCustomers from './pages/ImportCustomers'
+import Projects from './pages/Projects'
 import Audit from './pages/Audit'
 import System from './pages/System'
 import { ReactNode } from 'react'
@@ -58,6 +60,8 @@ export default function App() {
                   <Route path="invoices" element={<Invoices />} />
                   <Route path="reports" element={<Reports />} />
                   <Route path="customer-pool" element={<CustomerPool />} />
+                  <Route path="import-customers" element={<ImportCustomers />} />
+                  <Route path="projects" element={<Projects />} />
                   <Route path="audit" element={<Audit />} />
                   <Route path="system" element={<System />} />
                 </Route>

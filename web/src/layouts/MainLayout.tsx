@@ -12,6 +12,8 @@ import {
   BarChartOutlined,
   FileSearchOutlined,
   InboxOutlined,
+  FileExcelOutlined,
+  ProjectOutlined,
   SettingOutlined,
   LogoutOutlined,
   KeyOutlined,
@@ -69,6 +71,12 @@ export default function MainLayout() {
     { key: '/invoices', icon: <FileTextOutlined />, label: '开票' },
     { key: '/reports', icon: <BarChartOutlined />, label: '报表' },
     { key: '/customer-pool', icon: <InboxOutlined />, label: '公海池' },
+    ...(me?.role === 'admin' || me?.role === 'sales' || me?.role === 'sales_lead'
+      ? [{ key: '/import-customers', icon: <FileExcelOutlined />, label: 'Excel 导入' }]
+      : []),
+    ...(me?.role === 'admin' || me?.role === 'sales' || me?.role === 'sales_lead'
+      ? [{ key: '/projects', icon: <ProjectOutlined />, label: '项目交付' }]
+      : []),
     ...(me?.role === 'admin' || me?.role === 'hr' || me?.role === 'finance'
       ? [{ key: '/audit', icon: <FileSearchOutlined />, label: '审计' }]
       : []),

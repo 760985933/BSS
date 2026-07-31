@@ -290,6 +290,61 @@ type CodeCounter struct {
 	Seq    int    `json:"seq"`
 }
 
+// 项目/交付管理（M3-3）
+const (
+	ProjPlanning   = "planning"   // 规划中
+	ProjInProgress = "in_progress" // 进行中
+	ProjOnHold     = "on_hold"    // 已暂停
+	ProjCompleted  = "completed"  // 已完成
+	ProjCancelled  = "cancelled"  // 已取消
+
+	TaskKindTask      = "task"      // 任务
+	TaskKindMilestone = "milestone" // 里程碑
+
+	TaskTodo  = "todo"  // 待办
+	TaskDoing = "doing" // 进行中
+	TaskDone  = "done"  // 已完成
+)
+
+type Project struct {
+	Base
+	Code        string    `gorm:"uniqueIndex" json:"code"`
+	Name        string    `json:"name"`
+	CustomerID  *uint     `json:"customer_id,string"` // 关联客户（可选）
+	Customer    *Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	OwnerID     uint      `json:"owner_id,string"` // 项目经理
+	Owner       *Employee `gorm:"foreignKey:OwnerID" json:"owner,omitempty"`
+	Status      string    `json:"status"`
+	StartDate   string    `json:"start_date"`
+	EndDate     string    `json:"end_date"` // 预计结束日期
+	Description string    `json:"description"`
+	Members     []ProjectMember `gorm:"foreignKey:ProjectID" json:"members,omitempty"`
+	Tasks       []ProjectTask   `gorm:"foreignKey:ProjectID" json:"tasks,omitempty"`
+}
+
+type ProjectMember struct {
+	Base
+	ProjectID   uint      `json:"project_id,string"`
+	EmployeeID  uint      `json:"employee_id,string"`
+	Employee    *Employee `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
+	Role        string    `json:"role"`
+	PlannedDays float64   `json:"planned_days"` // 计划人天（非金额，允许小数）
+	ActualDays  float64   `json:"actual_days"`  // 实际人天
+}
+
+type ProjectTask struct {
+	Base
+	ProjectID    uint      `json:"project_id,string"`
+	Kind         string    `json:"kind"` // task | milestone
+	Title        string    `json:"title"`
+	AssigneeID   *uint     `json:"assignee_id,string"` // 负责人（可选）
+	Assignee     *Employee `gorm:"foreignKey:AssigneeID" json:"assignee,omitempty"`
+	DueDate      string    `json:"due_date"`
+	Status       string    `json:"status"` // todo | doing | done
+	EstimateDays float64   `json:"estimate_days"` // 预估人天
+	Sort         int       `json:"sort"`
+}
+
 // Dict 通用数据字典（type：dept/industry/source/level/pay_method）
 // 唯一性由 DB 部分索引 uq_dicts_type_value 保证（仅未删除行）
 type Dict struct {

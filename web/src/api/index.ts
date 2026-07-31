@@ -814,3 +814,142 @@ export const apiGetPoolSettings = () =>
 
 export const apiUpdatePoolSettings = (s: Omit<PoolSettings, 'id' | 'updated_at'>) =>
   client.put<unknown, PoolSettings>('/customer-pool/settings', s)
+
+// ---------- Excel 数据导入（M3-2） ----------
+export interface ImportRowError {
+  row: number
+  message: string
+}
+
+export interface ImportResult {
+  total: number
+  created_customers: number
+  created_contacts: number
+  skipped: number
+  errors: ImportRowError[]
+}
+
+// 上传并导入客户/联系人 Excel（multipart，字段 file）
+export const apiImportCustomers = (file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return client.post<unknown, ImportResult>('/imports/customers', fd)
+}
+
+// 下载导入模板（xlsx 二进制流）
+export const apiDownloadCustomerTemplate = () =>
+  client.get('/imports/customers/template', { responseType: 'blob' }) as Promise<Blob>
+
+// ---------- 项目/交付管理（M3-3） ----------
+export type ProjectStatus = 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled'
+export type TaskKind = 'task' | 'milestone'
+export type TaskStatus = 'todo' | 'doing' | 'done'
+
+export const PROJECT_STATUS: Record<ProjectStatus, { label: string; color: string }> = {
+  planning: { label: '规划中', color: 'default' },
+  in_progress: { label: '进行中', color: 'processing' },
+  on_hold: { label: '已暂停', color: 'warning' },
+  completed: { label: '已完成', color: 'success' },
+  cancelled: { label: '已取消', color: 'error' },
+}
+
+export const TASK_STATUS: Record<TaskStatus, { label: string; color: string }> = {
+  todo: { label: '待办', color: 'default' },
+  doing: { label: '进行中', color: 'processing' },
+  done: { label: '已完成', color: 'success' },
+}
+
+export interface Project {
+  id: string
+  code: string
+  name: string
+  customer_id: string | null
+  customer?: { id: string; name: string }
+  owner_id: string
+  owner?: Employee
+  status: ProjectStatus
+  start_date: string
+  end_date: string
+  description: string
+  members?: ProjectMember[]
+  tasks?: ProjectTask[]
+  created_at: string
+}
+
+export interface ProjectMember {
+  id: string
+  project_id: string
+  employee_id: string
+  employee?: Employee
+  role: string
+  planned_days: number
+  actual_days: number
+}
+
+export interface ProjectTask {
+  id: string
+  project_id: string
+  kind: TaskKind
+  title: string
+  assignee_id: string | null
+  assignee?: Employee
+  due_date: string
+  status: TaskStatus
+  estimate_days: number
+  sort: number
+}
+
+export interface ProjectInput {
+  name: string
+  customer_id?: string | null
+  owner_id: string
+  status?: ProjectStatus
+  start_date?: string
+  end_date?: string
+  description?: string
+}
+
+export interface ProjectQuery {
+  page?: number
+  size?: number
+  keyword?: string
+  status?: string
+  owner_id?: string
+}
+
+export const apiListProjects = (params: ProjectQuery) =>
+  client.get<unknown, PageData<Project>>('/projects', { params })
+
+export const apiGetProject = (id: string) => client.get<unknown, Project>(`/projects/${id}`)
+
+export const apiCreateProject = (data: ProjectInput) =>
+  client.post<unknown, Project>('/projects', data)
+
+export const apiUpdateProject = (id: string, data: ProjectInput) =>
+  client.put<unknown, { message: string }>(`/projects/${id}`, data)
+
+export const apiDeleteProject = (id: string) =>
+  client.delete<unknown, { message: string }>(`/projects/${id}`)
+
+export const apiListProjectMembers = (id: string) =>
+  client.get<unknown, ProjectMember[]>(`/projects/${id}/members`)
+
+export const apiAddProjectMember = (id: string, data: { employee_id: string; role?: string; planned_days?: number; actual_days?: number }) =>
+  client.post<unknown, ProjectMember>(`/projects/${id}/members`, data)
+
+export const apiUpdateProjectMember = (id: string, mid: string, data: { role?: string; planned_days?: number; actual_days?: number }) =>
+  client.put<unknown, { message: string }>(`/projects/${id}/members/${mid}`, data)
+
+export const apiRemoveProjectMember = (id: string, mid: string) =>
+  client.delete<unknown, { message: string }>(`/projects/${id}/members/${mid}`)
+
+export const apiAddProjectTask = (id: string, data: {
+  kind: TaskKind; title: string; assignee_id?: string | null; due_date?: string; status?: TaskStatus; estimate_days?: number; sort?: number
+}) => client.post<unknown, ProjectTask>(`/projects/${id}/tasks`, data)
+
+export const apiUpdateProjectTask = (id: string, tid: string, data: {
+  kind: TaskKind; title: string; assignee_id?: string | null; due_date?: string; status?: TaskStatus; estimate_days?: number; sort?: number
+}) => client.put<unknown, { message: string }>(`/projects/${id}/tasks/${tid}`, data)
+
+export const apiRemoveProjectTask = (id: string, tid: string) =>
+  client.delete<unknown, { message: string }>(`/projects/${id}/tasks/${tid}`)

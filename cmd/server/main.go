@@ -64,6 +64,8 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	invH := handlers.NewInvoiceHandler(services.NewInvoiceService(gdb))
 	repH := handlers.NewReportHandler(services.NewReportService(gdb))
 	poolH := handlers.NewPoolHandler(gdb)
+	impH := handlers.NewImportHandler(gdb)
+	projH := handlers.NewProjectHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -189,6 +191,29 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 
 			// 审计查询（M2-4）：仅管理/监督角色（admin/hr/finance）；全局合规日志，不做行级过滤
 			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleHR, models.RoleFinance)).Get("/audit-logs", audH.List)
+
+			// Excel 数据导入（M3-2）：客户/联系人批量录入；下载模板与上传导入，排除财务
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Get("/imports/customers/template", impH.Template)
+				r.Post("/imports/customers", impH.ImportCustomers)
+			})
+
+			// 项目/交付管理（M3-3）：登录即可查看（ScopeProject）；增改/成员/任务限 admin/sales/sales_lead
+			r.Get("/projects", projH.List)
+			r.Get("/projects/{id}", projH.Get)
+			r.Get("/projects/{id}/members", projH.ListMembers)
+			r.Get("/projects/{id}/tasks", projH.ListTasks)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/projects", projH.Create)
+				r.Put("/projects/{id}", projH.Update)
+				r.Delete("/projects/{id}", projH.Delete)
+				r.Post("/projects/{id}/members", projH.AddMember)
+				r.Put("/projects/{id}/members/{mid}", projH.UpdateMember)
+				r.Delete("/projects/{id}/members/{mid}", projH.RemoveMember)
+				r.Post("/projects/{id}/tasks", projH.AddTask)
+				r.Put("/projects/{id}/tasks/{tid}", projH.UpdateTask)
+				r.Delete("/projects/{id}/tasks/{tid}", projH.DeleteTask)
+			})
 
 			// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
 			r.Get("/contracts/{id}/plans", payH.ListPlans)

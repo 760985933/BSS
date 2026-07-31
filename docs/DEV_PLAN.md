@@ -99,9 +99,8 @@
 
 ## M3 · 三期可选（按业务反馈）
 
-- 项目/交付管理（若"做"的过程需要管：任务、里程碑、人天）
-- 通知渠道扩展：邮件 → 企业微信 webhook
-- 客户公海池、Excel 数据导入（评审确认一期不做，已入 PRD 附录 A Backlog）
+- 通知渠道扩展：邮件 → 企业微信 webhook（待排期）
+- Excel 数据导入、项目/交付管理 已在下方交付（见 M3-2 / M3-3）
 
 > 完整候选清单统一维护在 **PRD 附录 A · Backlog**，此处不重复登记。
 
@@ -112,6 +111,21 @@
 - 离职交接打通：离职不指定交接人 → 名下客户退回公海（`ErrSuccessorRequired` 守卫有商单/合同时必须指定交接人）
 - 配套迁移 `0007`：去掉 `customers.owner_id` 指向 employees 的外键，以支持 `owner_id=0` 公海语义
 - 验收：后端 `go test ./...`、前端 `pnpm test`（39 用例）、E2E `e2e_m31.py`（44 用例）全绿
+
+### M3-2 Excel 数据导入 ✅（2026-07-31）
+- 存量客户/联系人批量导入：无新增表（复用 customers/contacts），excelize 解析 .xlsx（模板表头 + 填写说明双 sheet）。
+- 端点：`POST /api/v1/imports/customers`（multipart，限 admin/sales/sales_lead）、`GET /api/v1/imports/customers/template`（下载模板）。
+- 列：客户名称(必填,按名去重跳过)、行业/来源/等级、负责人邮箱(留空归导入人；admin/主管可跨人分配)、备注、联系人*(可选,含是否首要联系人)。
+- 返回导入摘要（有效行/新建客户/新建联系人/跳过/失败行明细），逐行事务落库，负责人解析失败整行跳过并计入错误。
+- 前端：`web/src/pages/ImportCustomers.tsx`（拖拽上传 + 模板下载 + 结果统计与错误明细），菜单「Excel 导入」。
+- 验收：单测 `import_test.go`（基础导入/重名跳过/无效负责人邮箱）+ `cmd/server/m3_e2e_test.go`（httptest 复用生产路由全链路）全绿。
+
+### M3-3 项目/交付管理 ✅（2026-07-31）
+- 三表：projects（XM 单号、状态机 planning/in_progress/on_hold/completed/cancelled、关联客户/项目经理）、project_members（成员+计划/实际人天，人天用 REAL 允许小数）、project_tasks（任务/里程碑合并 kind，状态 todo/doing/done，预估人天）。
+- 迁移 `0008_projects.sql`；模型 `Project.Members/Tasks` 关联字段；`ScopeProject` 数据范围（admin/finance/hr 看全部，销售/主管看「自己负责或自己是成员」）；写操作鉴权 owner/成员。
+- 端点：项目 CRUD + `/members`、`/tasks` 增删改查（限 admin/sales/sales_lead）。
+- 前端：`web/src/pages/Projects.tsx`（列表 + 新建/编辑 + Drawer 详情三 Tab：任务/里程碑/成员含人天汇总）。
+- 验收：`cmd/server/m3_e2e_test.go` 覆盖项目建/成员/任务/详情/删除全链路；`go test ./...` 与 `pnpm build` 全绿；`make e2e` 业务流回归 ALL PASS 无回归。
 
 ---
 
