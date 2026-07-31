@@ -18,6 +18,8 @@ import (
 	"bss/internal/pkg/resp"
 	"bss/internal/services"
 
+	"gorm.io/gorm"
+
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
@@ -36,6 +38,20 @@ func main() {
 		log.Fatalf("admin 初始化失败: %v", err)
 	}
 
+	r := buildRouter(cfg, gdb, authSvc)
+
+	// 后台调度：每日 09:00 扫描到期/逾期生成提醒（随主进程生命周期）
+	cron.Start(context.Background(), gdb)
+
+	log.Printf("BSS 服务已启动: http://%s （数据目录: %s）", cfg.Addr, cfg.DataDir)
+	if err := http.ListenAndServe(cfg.Addr, r); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// buildRouter 构建完整 HTTP 路由。
+// 抽离自 main()，便于权限矩阵等 handler 层测试直接复用同一份路由定义（行为不变）。
+func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService) http.Handler {
 	authH := handlers.NewAuthHandler(authSvc, cfg.JWTSecret)
 	empH := handlers.NewEmployeeHandler(gdb)
 	audH := handlers.NewAuditHandler(services.NewAuditQueryService(gdb))
@@ -116,78 +132,78 @@ func main() {
 			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
 				r.Post("/deals", dealH.Create)
 				r.Put("/deals/{id}", dealH.Update)
-			r.Post("/deals/{id}/status", dealH.ChangeStatus)
-			r.Delete("/deals/{id}", dealH.Delete)
+				r.Post("/deals/{id}/status", dealH.ChangeStatus)
+				r.Delete("/deals/{id}", dealH.Delete)
+			})
+
+			// 合同：查看全角色（ScopeOwner）；增删改/状态流转/关联商单/附件排除财务（PRD §6）
+			r.Get("/contracts", contrH.List)
+			r.Get("/contracts/{id}", contrH.Get)
+			r.Get("/contracts/{id}/attachments", contrH.ListAttachments)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/contracts", contrH.Create)
+				r.Put("/contracts/{id}", contrH.Update)
+				r.Post("/contracts/{id}/status", contrH.ChangeStatus)
+				r.Put("/contracts/{id}/deals", contrH.ReplaceDeals)
+				r.Delete("/contracts/{id}", contrH.Delete)
+				r.Post("/contracts/{id}/attachments", contrH.UploadAttachment)
+				r.Delete("/attachments/{id}", contrH.DeleteAttachment)
+			})
+			// 附件下载：鉴权组内，非登录不可下载
+			r.Get("/attachments/{id}/download", contrH.DownloadAttachment)
+
+			// 提醒 + 仪表盘：登录即可访问自己的通知；仪表盘按 ScopeOwner 过滤
+			r.Get("/notifications", notifH.List)
+			r.Get("/notifications/unread-count", notifH.UnreadCount)
+			r.Post("/notifications/{id}/read", notifH.MarkRead)
+			r.Post("/notifications/read-all", notifH.MarkAllRead)
+			r.Get("/dashboard", notifH.Dashboard)
+			r.With(middleware.RequireRole(models.RoleAdmin)).Post("/admin/scan-reminders", notifH.TriggerScan)
+
+			// 审批流（M2-1）：登录即可查看；提交审批限销售/销售主管/管理员；审批通过/驳回限管理员/财务/销售主管
+			r.Get("/approvals", apprH.List)
+			r.Get("/approvals/{id}", apprH.Get)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Post("/approvals", apprH.Create)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/approvals/{id}/approve", apprH.Approve)
+				r.Post("/approvals/{id}/reject", apprH.Reject)
+			})
+
+			// 开票管理（M2-2）：查看全角色（ScopeOwner）；新建/开票/作废/编辑/删除限管理员/财务/销售主管
+			r.Get("/invoices", invH.List)
+			r.Get("/invoices/{id}", invH.Get)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/invoices", invH.Create)
+				r.Post("/invoices/{id}/issue", invH.Issue)
+				r.Post("/invoices/{id}/void", invH.Void)
+				r.Put("/invoices/{id}", invH.Update)
+				r.Delete("/invoices/{id}", invH.Delete)
+			})
+
+			// 报表中心（M2-3）：登录即可访问（数据范围由 ScopeOwner 控制）；CSV 导出为附件
+			r.Get("/reports/sign-trend", repH.SignTrend)
+			r.Get("/reports/payment-trend", repH.PaymentTrend)
+			r.Get("/reports/sales-rank", repH.SalesRank)
+			r.Get("/reports/funnel", repH.Funnel)
+			r.Get("/reports/export", repH.Export)
+
+			// 审计查询（M2-4）：仅管理/监督角色（admin/hr/finance）；全局合规日志，不做行级过滤
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleHR, models.RoleFinance)).Get("/audit-logs", audH.List)
+
+			// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
+			r.Get("/contracts/{id}/plans", payH.ListPlans)
+			r.Get("/contracts/{id}/records", payH.ListRecords)
+			r.Get("/contracts/{id}/payment-summary", payH.Summary)
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Post("/contracts/{id}/plans", payH.CreatePlan)
+				r.Put("/contracts/{id}/plans/{pid}", payH.UpdatePlan)
+				r.Delete("/contracts/{id}/plans/{pid}", payH.DeletePlan)
+			})
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance)).Group(func(r chi.Router) {
+				r.Post("/contracts/{id}/records", payH.CreateRecords)
+				r.Delete("/contracts/{id}/records/{rid}", payH.DeleteRecord)
+			})
 		})
-
-		// 合同：查看全角色（ScopeOwner）；增删改/状态流转/关联商单/附件排除财务（PRD §6）
-		r.Get("/contracts", contrH.List)
-		r.Get("/contracts/{id}", contrH.Get)
-		r.Get("/contracts/{id}/attachments", contrH.ListAttachments)
-		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
-			r.Post("/contracts", contrH.Create)
-			r.Put("/contracts/{id}", contrH.Update)
-			r.Post("/contracts/{id}/status", contrH.ChangeStatus)
-			r.Put("/contracts/{id}/deals", contrH.ReplaceDeals)
-			r.Delete("/contracts/{id}", contrH.Delete)
-			r.Post("/contracts/{id}/attachments", contrH.UploadAttachment)
-			r.Delete("/attachments/{id}", contrH.DeleteAttachment)
-		})
-		// 附件下载：鉴权组内，非登录不可下载
-		r.Get("/attachments/{id}/download", contrH.DownloadAttachment)
-
-		// 提醒 + 仪表盘：登录即可访问自己的通知；仪表盘按 ScopeOwner 过滤
-		r.Get("/notifications", notifH.List)
-		r.Get("/notifications/unread-count", notifH.UnreadCount)
-		r.Post("/notifications/{id}/read", notifH.MarkRead)
-		r.Post("/notifications/read-all", notifH.MarkAllRead)
-		r.Get("/dashboard", notifH.Dashboard)
-		r.With(middleware.RequireRole(models.RoleAdmin)).Post("/admin/scan-reminders", notifH.TriggerScan)
-
-		// 审批流（M2-1）：登录即可查看；提交审批限销售/销售主管/管理员；审批通过/驳回限管理员/财务/销售主管
-		r.Get("/approvals", apprH.List)
-		r.Get("/approvals/{id}", apprH.Get)
-		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Post("/approvals", apprH.Create)
-		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleSalesLead)).Group(func(r chi.Router) {
-			r.Post("/approvals/{id}/approve", apprH.Approve)
-			r.Post("/approvals/{id}/reject", apprH.Reject)
-		})
-
-		// 开票管理（M2-2）：查看全角色（ScopeOwner）；新建/开票/作废/编辑/删除限管理员/财务/销售主管
-		r.Get("/invoices", invH.List)
-		r.Get("/invoices/{id}", invH.Get)
-		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleSalesLead)).Group(func(r chi.Router) {
-			r.Post("/invoices", invH.Create)
-			r.Post("/invoices/{id}/issue", invH.Issue)
-			r.Post("/invoices/{id}/void", invH.Void)
-			r.Put("/invoices/{id}", invH.Update)
-			r.Delete("/invoices/{id}", invH.Delete)
-		})
-
-		// 报表中心（M2-3）：登录即可访问（数据范围由 ScopeOwner 控制）；CSV 导出为附件
-		r.Get("/reports/sign-trend", repH.SignTrend)
-		r.Get("/reports/payment-trend", repH.PaymentTrend)
-		r.Get("/reports/sales-rank", repH.SalesRank)
-		r.Get("/reports/funnel", repH.Funnel)
-		r.Get("/reports/export", repH.Export)
-
-		// 审计查询（M2-4）：仅管理/监督角色（admin/hr/finance）；全局合规日志，不做行级过滤
-		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleHR, models.RoleFinance)).Get("/audit-logs", audH.List)
-
-		// 回款：查看全角色（ScopeOwner）；计划 CRUD 排除财务；回款记录录入/删除仅 admin/finance
-		r.Get("/contracts/{id}/plans", payH.ListPlans)
-		r.Get("/contracts/{id}/records", payH.ListRecords)
-		r.Get("/contracts/{id}/payment-summary", payH.Summary)
-		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSales, models.RoleSalesLead)).Group(func(r chi.Router) {
-			r.Post("/contracts/{id}/plans", payH.CreatePlan)
-			r.Put("/contracts/{id}/plans/{pid}", payH.UpdatePlan)
-			r.Delete("/contracts/{id}/plans/{pid}", payH.DeletePlan)
-		})
-		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance)).Group(func(r chi.Router) {
-			r.Post("/contracts/{id}/records", payH.CreateRecords)
-			r.Delete("/contracts/{id}/records/{rid}", payH.DeleteRecord)
-		})
-	})
 
 		// /api 下未匹配路径返回 JSON 404（而不是 SPA 页面）
 		r.NotFound(func(w http.ResponseWriter, req *http.Request) {
@@ -198,13 +214,7 @@ func main() {
 	// SPA 托管：静态资源直出，其余 GET 回退 index.html
 	r.Get("/*", spaHandler())
 
-	// 后台调度：每日 09:00 扫描到期/逾期生成提醒（随主进程生命周期）
-	cron.Start(context.Background(), gdb)
-
-	log.Printf("BSS 服务已启动: http://%s （数据目录: %s）", cfg.Addr, cfg.DataDir)
-	if err := http.ListenAndServe(cfg.Addr, r); err != nil {
-		log.Fatal(err)
-	}
+	return r
 }
 
 // spaHandler 内嵌前端单页应用托管
