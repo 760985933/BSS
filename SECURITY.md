@@ -12,7 +12,7 @@
 ⚠️ **请勿在公开 Issue 中披露安全漏洞。** 请通过以下方式**私下**报告：
 
 - **推荐**：在仓库的 **Security → Report a vulnerability** 创建私有安全公告（GitHub Security Advisories）；
-- 邮件 / Email：`maintainer@example.com`（占位，请替换为项目维护者真实邮箱）。
+- 网站 / Website：`https://www.nettopo.com`
 
 报告中请尽量提供：
 
