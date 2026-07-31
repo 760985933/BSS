@@ -16,6 +16,7 @@
 | M1 一期 MVP | 11 张核心表全链路可用 | 通过 PRD §4 逐条验收 + 模拟数据跑通"获客→收钱" |
 | M2 二期增强 | 审批/开票/报表/审计查询 | 财务全流程无纸面操作 |
 | M3 三期可选 | 交付管理/通知渠道扩展 | 视业务反馈排期 |
+| M6 EHR 全模块 | 招聘漏斗/劳动合同/入职/考勤/薪酬/绩效 | 9 项 HR 能力全链路可用（详见本章节末） |
 
 ---
 
@@ -204,3 +205,68 @@ mkdir -p bss/{cmd/server,internal,migrations,web,data} && cd bss && go mod init 
 - 打标签即可触发：例如 `git tag v1.0.0 && git push origin v1.0.0` → 自动构建四平台并生成带说明的 Release。
 - 本地已按工作流步骤验证：前端 pnpm build 通过、CGO=0 交叉编译产出可用单二进制（内嵌 web/dist + migrations）。
 - `go test ./...`、`pnpm build`、`make e2e` 保持全绿无回归。
+
+---
+
+## M6 · EHR 人力资源全模块（按业务反馈，已立项）
+
+> 目标：在现有"裁剪版 HR（员工档案，M1 Sprint 1）"基础上补齐完整人力资源能力，覆盖 **招聘漏斗 / 入职管理 / 劳动合同 / 考勤排班 / 薪酬核算 / 绩效考核** 六大域。
+> 首期已拍板：**先上招聘侧（S1 招聘漏斗 → S2 劳动合同/入职）**；考勤采用 **"仅排班 + 请假"** 形态（不做 GPS 打卡）。
+> 技术套路沿用全栈约定：每 Sprint = migration（增量 SQL）+ model + service（业务错误映射 4xx）+ handler + 路由 + 前端页面（AntD + TanStack Query）+ 单测 + E2E；金额用整数分（*_cent）、UTC、软删除、审计白名单表。
+
+### 数据模型概览（新增表，不改动现有 employees 主表）
+- `job_posts`（招聘职位）：code(JP-YYYY-####)、title、dept、headcount、status(open/closed)、description、owner_id
+- `candidates`（候选人/招聘漏斗）：job_post_id、name、phone、email、stage(apply/screen/interview/offer/hired/rejected)、source、resume_url、owner_id
+- `labor_contracts`（劳动合同）：employee_id、type(fixed/flexible/internship)、start_date、end_date、status(active/expired/renewed/terminated)、salary_cent、signed_file、owner_id
+- `onboardings`（入职管理）：employee_id/candidate_id、step(profile/equip/training/probation)、status(pending/done)、plan_date、done_date、owner_id
+- `attendance_schedules`（排班）：employee_id、weekday(1–7)、start_time、end_time、shift_type
+- `attendances`（考勤记录）：employee_id、date、schedule_id、status(normal/late/early/absent/leave)、leave_type
+- `leave_requests`（请假）：employee_id、type、start、end、reason、status(pending/approved/rejected)、approver_id
+- `payrolls`（薪资核算）：employee_id、period(YYYY-MM)、base_cent、bonus_cent、deduction_cent、social_cent、tax_cent、net_cent、status(draft/calced/paid)、owner_id
+- `performance_cycles`（考核周期）：name、start、end、template
+- `performance_records`（绩效考核）：employee_id、cycle_id、score、grade、self_eval、leader_eval、status(draft/submitted/reviewed)
+
+### Sprint 1 · 招聘漏斗（约 5 天）—— 首期优先 ✅ 已完成 (2026-07-31)
+- `job_posts` CRUD（关联 dicts 部门/职位枚举）、`candidates` CRUD + 阶段流转（apply→screen→interview→offer→hired/rejected，含回退软校验）
+- 招聘漏斗看板：按 stage 统计候选人数（AntD 漏斗/步骤条）
+- 端点：`/job-posts`、`/candidates`、`POST /candidates/:id/advance`；数据范围 HR/admin 全量、主管看本部门
+- **验收**：职位发布、候选人入库与阶段推进、漏斗看板数据正确；后端单测 + E2E 全绿
+- 已交付：migration `0011_recruitment.sql`、`models/recruitment.go`、`services/recruitment.go`、`handlers/recruitment.go`，前端 `pages/Recruitment.tsx`（职位/候选人/漏斗三 Tab），后端单测 `recruitment_test.go` + E2E `m6_recruitment_e2e_test.go` 全绿。
+
+### Sprint 2 · 劳动合同 + 入职管理（约 5 天）—— 首期优先
+- `labor_contracts` CRUD（关联 employee），状态机 draft→active→expired/renewed/terminated（terminated 必填原因）
+- `onboardings` 入职流程（步骤 profile/equip/training/probation，状态 pending/done），可关联 candidate→employee
+- 定时提醒挂 `ScanReminders`：合同 30 天内到期、试用期临近转正
+- 端点：`/labor-contracts`、`/onboardings`；数据范围 HR/admin
+- **验收**：合同生命周期 + 入职步骤推进 + 到期/转正提醒；单测 + E2E 全绿
+
+### Sprint 3 · 考勤排班 + 请假（约 5 天）—— 形态：仅排班+请假
+- `attendance_schedules` 排班表（按员工/星期/班别），`leave_requests` 请假申请 + 审批流（复用 M2 approvals 机制）
+- 考勤结果基于排班 + 请假人工/自动标记出勤状态（**不做 GPS 打卡**；可选轻量网页"签到"记录）
+- 端点：`/schedules`、`/leave-requests`（请假审批沿用 M2 审批流）
+- **验收**：排班维护、请假提交与审批、出勤状态标记；单测 + E2E 全绿
+
+### Sprint 4 · 薪酬核算（约 6 天）
+- `payrolls` 薪资结构（base/bonus/deduction/social/tax/net 整数分），月度核算按员工生成当期 payroll 支持手动调整
+- 工资条导出（CSV/摘要，敏感字段掩码）；`smtp_password` 类敏感字段不序列化
+- 端点：`/payrolls`、`POST /payrolls/:id/calc`、`GET /payrolls/export`（仅 admin/finance/hr）
+- **验收**：金额精度边界（多退少补/跨月）、已核算禁改、导出掩码；金额单测 + E2E 全绿
+
+### Sprint 5 · 绩效考核（约 5 天）
+- `performance_cycles` 考核周期 + `performance_records` 评分（self_eval/leader_eval/score/grade）
+- 考核模板（KPI 维度 + 权重，可配置）—— *模型待确认：KPI 打分 / OKR / 360 评估*
+- 端点：`/perf-cycles`、`/perf-records`
+- **验收**：周期创建、评分提交与主管复核、结果归档；单测 + E2E 全绿
+
+### Sprint 6 · 报表整合 + 权限细化 + 全绿（约 4 天）
+- HR 仪表盘：在职人数 / 招聘漏斗 / 合同到期 / 月考勤异常 / 薪酬总额 / 绩效分布
+- 权限细化：HR 角色在 EHR 各子模块的操作矩阵（与 PRD §6 对齐）
+- 全链路联调 + 造数脚本 + `go test ./...` / `pnpm test` / `make e2e` 全绿
+
+### 待确认决策（影响后续 Sprint 设计）
+1. 绩效模型：KPI 打分 / OKR / 360 评估（影响 S5 模板与评分字段）
+2. 薪酬核算粒度：轻量（底薪+奖金-扣款）/ 含社保个税复杂规则（影响 S4 计算逻辑）
+3. 招聘漏斗是否对接外部渠道（拉勾/BOSS/官网 API）：纯内部记录 / 外部同步
+4. 考勤（S3）：已定"仅排班+请假"，打卡记录是否保留轻量网页签到待定
+
+> M6 首期（S1→S2）开工即纳入主分支，后续 Sprint 逐块独立提交，每块保持测试全绿再合入。

@@ -24,6 +24,7 @@ import NotifyChannels from './pages/NotifyChannels'
 import DuplicateCustomers from './pages/DuplicateCustomers'
 import LostDealAnalysis from './pages/LostDealAnalysis'
 import BankReconciliation from './pages/BankReconciliation'
+import Recruitment from './pages/Recruitment'
 import { ReactNode } from 'react'
 
 const queryClient = new QueryClient({
@@ -72,6 +73,7 @@ export default function App() {
                   <Route path="duplicates" element={<DuplicateCustomers />} />
                   <Route path="lost-analysis" element={<LostDealAnalysis />} />
                   <Route path="reconciliation" element={<BankReconciliation />} />
+                  <Route path="recruitment" element={<Recruitment />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

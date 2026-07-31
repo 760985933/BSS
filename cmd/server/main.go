@@ -70,6 +70,7 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	impH := handlers.NewImportHandler(gdb)
 	projH := handlers.NewProjectHandler(gdb)
 	nchH := handlers.NewNotifyChannelHandler(gdb)
+	recruitH := handlers.NewRecruitmentHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -254,6 +255,22 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 				r.Post("/bank-statements/{id}/reconcile", recH.Reconcile)
 				r.Post("/bank-statements/{id}/unreconcile", recH.Unreconcile)
 				r.Get("/reconciliation", recH.Summary)
+			})
+
+			// 招聘管理（M6-S1）：HR 域，限 admin/hr
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleHR)).Group(func(r chi.Router) {
+				r.Get("/job-posts", recruitH.ListJobPosts)
+				r.Post("/job-posts", recruitH.CreateJobPost)
+				r.Get("/job-posts/{id}", recruitH.GetJobPost)
+				r.Put("/job-posts/{id}", recruitH.UpdateJobPost)
+				r.Delete("/job-posts/{id}", recruitH.DeleteJobPost)
+				r.Get("/candidates", recruitH.ListCandidates)
+				r.Post("/candidates", recruitH.CreateCandidate)
+				r.Get("/candidates/funnel", recruitH.Funnel)
+				r.Get("/candidates/{id}", recruitH.GetCandidate)
+				r.Put("/candidates/{id}", recruitH.UpdateCandidate)
+				r.Delete("/candidates/{id}", recruitH.DeleteCandidate)
+				r.Post("/candidates/{id}/advance", recruitH.AdvanceCandidate)
 			})
 		})
 

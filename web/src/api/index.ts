@@ -1045,3 +1045,96 @@ export const apiUnreconcile = (id: string) =>
   client.post<unknown, { message: string }>(`/bank-statements/${id}/unreconcile`, {})
 export const apiReconciliation = () =>
   client.get<unknown, Reconciliation>('/reconciliation')
+
+// ---------- 招聘管理（M6-S1，admin/hr） ----------
+export interface JobPost {
+  id: string
+  code: string
+  title: string
+  dept: string
+  headcount: number
+  status: 'open' | 'closed'
+  description: string
+  owner_id: string
+  owner?: { name: string }
+}
+
+export interface Candidate {
+  id: string
+  job_post_id: string
+  job_post?: { title: string }
+  name: string
+  phone: string
+  email: string
+  stage: string
+  source: string
+  resume_url: string
+  owner_id: string
+  owner?: { name: string }
+}
+
+export interface JobPostInput {
+  title: string
+  dept?: string
+  headcount?: number
+  status?: 'open' | 'closed'
+  description?: string
+}
+
+export interface CandidateInput {
+  job_post_id?: string
+  name: string
+  phone?: string
+  email?: string
+  source?: string
+  resume_url?: string
+}
+
+export interface FunnelStage {
+  stage: string
+  count: number
+}
+
+export const JOB_STATUS: Record<string, { label: string; color: string }> = {
+  open: { label: '招聘中', color: 'green' },
+  closed: { label: '已关闭', color: 'default' },
+}
+
+export const CANDIDATE_STAGE: Record<string, { label: string; color: string }> = {
+  apply: { label: '投递', color: 'default' },
+  screen: { label: '筛选', color: 'blue' },
+  interview: { label: '面试', color: 'cyan' },
+  offer: { label: 'Offer', color: 'gold' },
+  hired: { label: '已入职', color: 'green' },
+  rejected: { label: '已淘汰', color: 'red' },
+}
+
+export const apiListJobPosts = (params?: { keyword?: string; status?: string }) =>
+  client.get<unknown, JobPost[]>('/job-posts', { params })
+
+export const apiCreateJobPost = (data: JobPostInput) =>
+  client.post<unknown, { job_post: JobPost; message: string }>('/job-posts', data)
+
+export const apiUpdateJobPost = (id: string, data: JobPostInput) =>
+  client.put<unknown, { message: string }>(`/job-posts/${id}`, data)
+
+export const apiDeleteJobPost = (id: string) =>
+  client.delete<unknown, { message: string }>(`/job-posts/${id}`)
+
+export const apiListCandidates = (params?: { keyword?: string; job_post_id?: string; stage?: string }) =>
+  client.get<unknown, Candidate[]>('/candidates', { params })
+
+export const apiCreateCandidate = (data: CandidateInput) =>
+  client.post<unknown, { candidate: Candidate; message: string }>('/candidates', data)
+
+export const apiUpdateCandidate = (id: string, data: CandidateInput) =>
+  client.put<unknown, { message: string }>(`/candidates/${id}`, data)
+
+export const apiDeleteCandidate = (id: string) =>
+  client.delete<unknown, { message: string }>(`/candidates/${id}`)
+
+export const apiAdvanceCandidate = (id: string, stage: string, force: boolean) =>
+  client.post<unknown, { message: string }>(`/candidates/${id}/advance`, { stage, force })
+
+export const apiCandidatesFunnel = (params?: { job_post_id?: string }) =>
+  client.get<unknown, FunnelStage[]>('/candidates/funnel', { params })
