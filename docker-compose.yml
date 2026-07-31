@@ -1,0 +1,25 @@
+services:
+  bss:
+    build: .
+    image: bss:latest
+    container_name: bss
+    restart: unless-stopped
+    environment:
+      BSS_ADDR: "0.0.0.0:8080"
+      BSS_DATA: "/data"
+      # 生产务必设置固定密钥：BSS_JWT_SECRET: "${BSS_JWT_SECRET}"
+      # 生成：openssl rand -hex 32
+      BSS_JWT_SECRET: "${BSS_JWT_SECRET:-change-me}"
+    volumes:
+      - bss-data:/data
+    # 方式 A：直接对外暴露（仅内网 / 测试用）
+    ports:
+      - "8080:8080"
+    # 方式 B：生产建议用 Nginx 反代终止 TLS，注释上面 ports，改为仅暴露给内部网络：
+    # expose:
+    #   - "8080"
+    # 并在同一 compose 增加 nginx 服务（配置见 docs/DEPLOY.md 的 nginx.conf），
+    # 把 bss 加入同一网络，由 nginx 监听 80/443。
+
+volumes:
+  bss-data:

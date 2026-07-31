@@ -2,7 +2,7 @@
 
 面向 10–100 人服务型公司的轻量业务管理系统，打通 **获客 → 成交 → 签约 → 收钱** 完整闭环。
 
-- 技术栈：React 18 + TypeScript + AntD 5（前端）/ Go 1.23 + chi + GORM（后端）/ SQLite（WAL，纯 Go 驱动免 CGO）
+- 技术栈：React 18 + TypeScript + AntD 5（前端）/ Go 1.25 + chi + GORM（后端）/ SQLite（WAL，纯 Go 驱动免 CGO）
 - 交付形态：单二进制（Go embed 内嵌前端），Docker 或裸服务器私有化部署，单租户
 - 设计文档：[docs/PRD.md](docs/PRD.md)（产品需求）、[docs/TECH_DESIGN.md](docs/TECH_DESIGN.md)（技术方案）、[docs/DEV_PLAN.md](docs/DEV_PLAN.md)（开发计划）
 
@@ -26,10 +26,25 @@ make run   # = 构建前端 dist + Go embed 编译 + 启动
 ```
 浏览器打开 **http://127.0.0.1:8080**，API 与页面同源。
 
+### 方式三：从 Release 下载预编译二进制（推荐上线用）
+
+打 `v*` 标签会由 GitHub Actions 自动编译 **Linux / macOS（amd64 + arm64）** 四个平台单二进制并发布到 Release，附带 `checksums.txt`、使用说明与部署文档。下载后：
+
+```bash
+chmod +x bss-server-linux-amd64
+BSS_DATA=./data BSS_JWT_SECRET=$(openssl rand -hex 32) ./bss-server-linux-amd64
+```
+
 ### 首次登录
 
 - 账号 `admin@bss.local`，初始密码 `admin123`，登录后强制改密
 - 建议先到「系统配置」建部门，再去「员工」建销售账号（初始密码统一 `Bss@1234`，同样强制首登改密）
+
+## 部署上线
+
+- **部署指南**：[docs/DEPLOY.md](docs/DEPLOY.md)（裸机 systemd / Docker / Nginx HTTPS / 备份恢复 / 升级）
+- **Release 使用说明**：[docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md)（程序包说明 + 快速开始）
+- 仓库含 `Dockerfile`、`docker-compose.yml`、`deploy/nginx.conf`，可一行 `docker compose up -d` 起服务
 
 ## 注意事项
 
@@ -51,4 +66,4 @@ docs/           # PRD / 技术方案 / 开发计划
 
 ## 当前进度
 
-M1 一期 MVP 进行中：✅ M0 工程基座 → ✅ Sprint 1 员工档案 → ✅ Sprint 2 客户+联系人 → ✅ Sprint 3 商单 → ⏳ Sprint 4 合同+附件 → Sprint 5 回款 → Sprint 6 提醒+仪表盘。详见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)。
+主线与增强全部交付：✅ M0 工程基座 → ✅ M1 一期 MVP（员工/客户/商单/合同/回款/提醒+仪表盘）→ ✅ M2 二期增强（审批/开票/报表/审计/离职交接）→ ✅ M3 三期可选（公海池/Excel 导入/项目交付/通知渠道）→ ✅ M4 业务增强（客户查重合并/输单分析/银企对账）。部署上线收尾（GitHub Release 工作流 + Docker + 部署文档）已完成。详见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)。

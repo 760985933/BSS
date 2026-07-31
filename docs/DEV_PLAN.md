@@ -181,3 +181,26 @@
 ```bash
 mkdir -p bss/{cmd/server,internal,migrations,web,data} && cd bss && go mod init bss
 ```
+
+---
+
+## M5 部署上线收尾（2026-07-31）
+
+目标：让系统真正能给团队用（而非只跑 localhost），并固化"打标签即发布"的发布流程。
+
+### M5-1 GitHub Release 工作流（仅 v* 标签触发）
+- `.github/workflows/release.yml`：`on.push.tags: ['v*']` 单一触发条件，其他推送（main/PR）不触发。
+- `build` 矩阵：linux/amd64、linux/arm64、darwin/amd64、darwin/arm64 四个平台单二进制。
+  - 前端：`pnpm/action-setup@v4`（v10）+ `setup-node` cache=pnpm → `pnpm install --frozen-lockfile` → `pnpm build`。
+  - 后端：`setup-go@v5`（1.25）+ `CGO_ENABLED=0 GOOS/GOARCH go build -trimpath -ldflags="-s -w"`（glebarez 纯 Go，免 CGO，可交叉编译）。
+- `release` 任务：收集产物 → 生成 `checksums.txt`（sha256）→ 拼接 Release body（**程序包说明表** + **使用说明**，使用说明内嵌 `docs/RELEASE_NOTES.md`）→ `softprops/action-gh-release@v2` 发布，附带 4 个二进制 + `checksums.txt` + `RELEASE_NOTES.md` + `DEPLOY.md` 作为 assets。
+
+### M5-2 部署材料
+- `docs/RELEASE_NOTES.md`：程序包说明（交付形态/平台/校验）+ 使用说明（运行/环境变量/首登/备份/升级/容器简述/功能地图）。
+- `docs/DEPLOY.md`：裸机 systemd 单元、Docker Compose、Nginx HTTPS 反代、备份恢复、升级、安全建议、故障排查。
+- `Dockerfile`（多阶段：node 构前端 → golang 构纯 Go 二进制 → alpine 运行，非 root 用户，/data 卷）、`docker-compose.yml`、`deploy/nginx.conf`、`.dockerignore`。
+
+### 验收 / 发布动作
+- 打标签即可触发：例如 `git tag v1.0.0 && git push origin v1.0.0` → 自动构建四平台并生成带说明的 Release。
+- 本地已按工作流步骤验证：前端 pnpm build 通过、CGO=0 交叉编译产出可用单二进制（内嵌 web/dist + migrations）。
+- `go test ./...`、`pnpm build`、`make e2e` 保持全绿无回归。

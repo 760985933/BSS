@@ -1,0 +1,163 @@
+name: Release
+
+# 仅在推送 v* 标签时自动编译并发布 Release（如 v1.0.0）。
+# 其他推送（main / PR）不会触发本流程。
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) 交叉编译四个平台单二进制（内嵌前端 + 数据库迁移，纯 Go 无 CGO）
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux,  goarch: amd64 }
+          - { goos: linux,  goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - name: Build frontend (pnpm)
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build server binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          BIN="bss-server-${{ matrix.goos }}-${{ matrix.goarch }}"
+          go build -trimpath -ldflags="-s -w" -o "$BIN" ./cmd/server
+          echo "built $BIN ($(stat -c%s "$BIN") bytes)"
+          test -s "$BIN"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bss-server-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bss-server-${{ matrix.goos }}-${{ matrix.goarch }}
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 2) 收集产物 → 生成校验和与 Release 说明（程序包说明 + 使用说明）→ 发布
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for docs)
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten & checksum
+        run: |
+          mkdir -p dist
+          find artifacts -type f -name 'bss-server-*' -exec cp {} dist/ \;
+          cd dist
+          sha256sum bss-server-* > checksums.txt
+          echo "== checksums =="
+          cat checksums.txt
+          echo "== files =="
+          ls -lh bss-server-*
+
+      - name: Build release body (程序包说明 + 使用说明)
+        run: |
+          {
+            echo "# BSS 业务管理系统 ${GITHUB_REF_NAME}"
+            echo
+            echo "单二进制交付：已内嵌前端页面与数据库迁移，**零外部依赖**，下载后赋予可执行权限即可运行。"
+            echo
+            echo "## 程序包说明"
+            echo
+            echo "| 平台 | 架构 | 文件 | SHA256 (前 16 位) |"
+            echo "| --- | --- | --- | --- |"
+            while read -r sum file; do
+              short="${sum:0:16}"
+              name="${file#bss-server-}"
+              plat="${name%-*}"
+              arch="${name##*-}"
+              echo "| ${plat} | ${arch} | \`${file}\` | \`${short}…\` |"
+            done < dist/checksums.txt
+            echo
+            echo "完整 SHA256 见附件 \`checksums.txt\`。"
+            echo
+            echo "## 快速开始"
+            echo
+            echo '```bash'
+            echo '# 以 Linux amd64 为例'
+            echo 'chmod +x bss-server-linux-amd64'
+            echo 'BSS_DATA=./data BSS_JWT_SECRET=$(openssl rand -hex 32) ./bss-server-linux-amd64'
+            echo '# 浏览器打开 http://<服务器IP>:8080'
+            echo '```'
+            echo
+            echo "> 首次登录：账号 \`admin@bss.local\` / 密码 \`admin123\`，登录后强制改密。"
+            echo
+            echo "---"
+            echo
+            echo "## 完整使用说明"
+            echo
+            cat docs/RELEASE_NOTES.md
+          } > release_body.md
+          echo "release_body.md generated ($(wc -l < release_body.md) lines)"
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p out
+          cp dist/bss-server-* out/
+          cp dist/checksums.txt out/
+          cp docs/RELEASE_NOTES.md out/
+          cp docs/DEPLOY.md out/
+          ls -lh out
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BSS ${{ github.ref_name }}
+          body_path: release_body.md
+          files: |
+            out/bss-server-*
+            out/checksums.txt
+            out/RELEASE_NOTES.md
+            out/DEPLOY.md
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
