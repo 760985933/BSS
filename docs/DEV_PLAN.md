@@ -149,8 +149,12 @@
 - 前端：`web/src/pages/DuplicateCustomers.tsx`（按重复组分 Card，Radio 选主、一键合并其余），菜单「客户查重」限 admin。
 - 验收：单测 `dupmerge_test.go`（查重分组/合并迁移/自身合并报错/缺失客户 404）+ `cmd/server/m2x_dupmerge_e2e_test.go`（httptest 全链路：查重→合并→复查重清空→从客户软删、下游迁移）；`go test ./...`、`pnpm build` 全绿。
 
-### M4-2 商单输单分析（待做）
-- 对 lost 商单按输单原因 / 负责人 / 时间段聚合分布，前端图表页。纯只读统计。
+### M4-2 商单输单分析 ✅（2026-07-31）
+- 对 `lost` 商单按**输单原因 / 负责人 / 月份**三维聚合（`LostDealAnalysis`），纯只读统计。
+- 原因枚举复用商单状态机 `validLostReasons`（no_purchase/competitor/budget/qualified_out/other），前端映射中文标签；月份取 `updated_at` 的 `YYYY-MM`（输单发生月）。
+- 端点（限 admin/主管）：`GET /reports/lost-analysis`。
+- 前端：`web/src/pages/LostDealAnalysis.tsx`（三张 Card + Progress 条形），菜单「输单分析」限 admin/主管，图标 PieChartOutlined。
+- 验收：单测 `analysis_test.go`（reason/owner/month 聚合）+ `cmd/server/m2x_analysis_e2e_test.go`（httptest 端点）；`go test ./...`、`pnpm build` 全绿。
 
 ### M4-3 银企对账（待做）
 - 新增银行流水录入，与回款记录逐笔匹配/勾对，输出未达账项。

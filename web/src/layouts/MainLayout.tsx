@@ -10,6 +10,7 @@ import {
   AuditOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  PieChartOutlined,
   FileSearchOutlined,
   InboxOutlined,
   FileExcelOutlined,
@@ -78,6 +79,9 @@ export default function MainLayout() {
       : []),
     ...(me?.role === 'admin' || me?.role === 'sales' || me?.role === 'sales_lead'
       ? [{ key: '/projects', icon: <ProjectOutlined />, label: '项目交付' }]
+      : []),
+    ...(me?.role === 'admin' || me?.role === 'sales_lead'
+      ? [{ key: '/lost-analysis', icon: <PieChartOutlined />, label: '输单分析' }]
       : []),
     ...(me?.role === 'admin' || me?.role === 'hr' || me?.role === 'finance'
       ? [{ key: '/audit', icon: <FileSearchOutlined />, label: '审计' }]

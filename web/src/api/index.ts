@@ -1007,3 +1007,14 @@ export const apiFindDuplicates = () =>
 
 export const apiMergeCustomers = (primary_id: number, secondary_id: number) =>
   client.post<unknown, { message: string }>('/customers/merge', { primary_id, secondary_id })
+
+// ---------- 商单输单分析（M4-2，admin/sales_lead） ----------
+export interface LostAnalysis {
+  total: number
+  by_reason: { key: string; count: number }[]
+  by_owner: { owner_id: number; name: string; count: number }[]
+  by_month: { key: string; count: number }[]
+}
+
+export const apiLostDealAnalysis = () =>
+  client.get<unknown, LostAnalysis>('/reports/lost-analysis')

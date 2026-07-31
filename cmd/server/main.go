@@ -57,6 +57,7 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	audH := handlers.NewAuditHandler(services.NewAuditQueryService(gdb))
 	custH := handlers.NewCustomerHandler(gdb)
 	dupH := handlers.NewDupMergeHandler(gdb)
+	anaH := handlers.NewAnalysisHandler(gdb)
 	dealH := handlers.NewDealHandler(gdb)
 	contrH := handlers.NewContractHandler(gdb, filepath.Join(cfg.DataDir, "uploads"))
 	payH := handlers.NewPaymentHandler(gdb)
@@ -101,6 +102,10 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 				// 客户查重合并（M2 增强）：跨 owner，仅 admin
 				r.Get("/customers/duplicates", dupH.Duplicates)
 				r.Post("/customers/merge", dupH.Merge)
+			})
+			// 商单输单分析（M4-2）：管理视角，限 admin/主管
+			r.With(middleware.RequireRole(models.RoleAdmin, models.RoleSalesLead)).Group(func(r chi.Router) {
+				r.Get("/reports/lost-analysis", anaH.LostDeals)
 			})
 
 			// 客户：查看全角色（ScopeOwner 行级过滤）；增删改/转移排除财务（PRD §6）

@@ -22,6 +22,7 @@ import Audit from './pages/Audit'
 import System from './pages/System'
 import NotifyChannels from './pages/NotifyChannels'
 import DuplicateCustomers from './pages/DuplicateCustomers'
+import LostDealAnalysis from './pages/LostDealAnalysis'
 import { ReactNode } from 'react'
 
 const queryClient = new QueryClient({
@@ -68,6 +69,7 @@ export default function App() {
                   <Route path="system" element={<System />} />
                   <Route path="notify-channels" element={<NotifyChannels />} />
                   <Route path="duplicates" element={<DuplicateCustomers />} />
+                  <Route path="lost-analysis" element={<LostDealAnalysis />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
