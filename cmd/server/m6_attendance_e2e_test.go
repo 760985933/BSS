@@ -108,3 +108,57 @@ func TestM6AttendanceE2E(t *testing.T) {
 		t.Fatalf("删除排班应 200, got %d", code)
 	}
 }
+
+// TestM6AttendanceErrorPaths 回归：CreateLeaveRequest 错误分支映射 + GenerateAttendance 解析失败。
+func TestM6AttendanceErrorPaths(t *testing.T) {
+	dir := t.TempDir()
+	gdb, err := db.Open(dir)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	authSvc := services.NewAuthService(gdb)
+	if err := authSvc.InitAdmin(context.Background()); err != nil {
+		t.Fatalf("InitAdmin: %v", err)
+	}
+	cfg := &config.Config{Addr: "127.0.0.1:0", DataDir: dir, JWTSecret: "test-secret-m6-err"}
+	h := buildRouter(cfg, gdb, authSvc)
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	adminTok := m3LoginAs(t, srv, "admin@bss.local", "admin123")
+
+	// 创建有效员工，确保能走到类型/日期校验分支
+	code, body := m3DoReq(srv, "POST", "/employees", adminTok, m3MustJSON(t, map[string]any{
+		"name": "考勤员工C", "phone": "13900000002", "dept": "技术部",
+		"position": "工程师", "role": "hr", "email": "att_err_emp@x.com",
+	}), "application/json")
+	if code != http.StatusOK {
+		t.Fatalf("创建员工失败: code=%d body=%s", code, body)
+	}
+	empID := m6NestedID(t, body, "employee")
+
+	// 1) 不支持的请假类型 → 400
+	code, body = m3DoReq(srv, "POST", "/leave-requests", adminTok, m3MustJSON(t, map[string]any{
+		"employee_id": empID, "type": "explosion", "start_date": "2026-08-03", "end_date": "2026-08-03", "reason": "x",
+	}), "application/json")
+	if code != http.StatusBadRequest {
+		t.Fatalf("不支持的请假类型应 400, got %d body=%s", code, body)
+	}
+
+	// 2) 起止日期非法（开始晚于结束）→ 400
+	code, body = m3DoReq(srv, "POST", "/leave-requests", adminTok, m3MustJSON(t, map[string]any{
+		"employee_id": empID, "type": "personal", "start_date": "2026-08-05", "end_date": "2026-08-03", "reason": "x",
+	}), "application/json")
+	if code != http.StatusBadRequest {
+		t.Fatalf("起止日期非法应 400, got %d body=%s", code, body)
+	}
+
+	// 3) GenerateAttendance 请求体解析失败（number 无法解码进 string）→ 400
+	code, body = m3DoReq(srv, "POST", "/attendances/generate", adminTok, []byte(`{"date":123}`), "application/json")
+	if code != http.StatusBadRequest {
+		t.Fatalf("生成考勤解析失败应 400, got %d body=%s", code, body)
+	}
+	if !strings.Contains(string(body), "请求体解析失败") {
+		t.Fatalf("解析失败应返回 '请求体解析失败', got %s", body)
+	}
+}

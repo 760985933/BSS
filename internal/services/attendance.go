@@ -20,6 +20,7 @@ var (
 	ErrLeaveMissing          = errors.New("请假申请不存在")
 	ErrLeaveAlreadyDecided   = errors.New("请假申请已审批，不可重复操作")
 	ErrLeaveDateInvalid      = errors.New("请假起止日期无效")
+	ErrLeaveTypeInvalid      = errors.New("不支持的请假类型")
 	ErrAttendanceMissing     = errors.New("考勤记录不存在")
 )
 
@@ -191,7 +192,7 @@ func CreateLeaveRequest(ctx context.Context, db *gorm.DB, gen *code.Generator, i
 		return nil, err
 	}
 	if !validLeaveTypes[in.Type] {
-		return nil, errors.New("不支持的请假类型")
+		return nil, ErrLeaveTypeInvalid
 	}
 	sd, err := parseDateTime(in.StartDate)
 	if err != nil {

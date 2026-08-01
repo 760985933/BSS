@@ -129,11 +129,12 @@ func (h *AttendanceHandler) CreateLeaveRequest(w http.ResponseWriter, r *http.Re
 	}
 	lr, err := services.CreateLeaveRequest(r.Context(), h.db, h.gen, in)
 	if err != nil {
-		if errors.Is(err, services.ErrEmployeeMissing) {
+		switch {
+		case errors.Is(err, services.ErrEmployeeMissing), errors.Is(err, services.ErrLeaveTypeInvalid), errors.Is(err, services.ErrLeaveDateInvalid):
 			resp.Fail(w, http.StatusBadRequest, resp.CodeBadRequest, err.Error())
-			return
+		default:
+			resp.Fail(w, http.StatusInternalServerError, resp.CodeInternal, err.Error())
 		}
-		resp.Fail(w, http.StatusBadRequest, resp.CodeBadRequest, err.Error())
 		return
 	}
 	resp.OK(w, lr)
@@ -232,7 +233,10 @@ func (h *AttendanceHandler) GenerateAttendance(w http.ResponseWriter, r *http.Re
 	var req struct {
 		Date string `json:"date"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Fail(w, http.StatusBadRequest, resp.CodeBadRequest, "请求体解析失败")
+		return
+	}
 	n, err := services.GenerateAttendance(r.Context(), h.db, req.Date)
 	if err != nil {
 		resp.Fail(w, http.StatusBadRequest, resp.CodeBadRequest, err.Error())
