@@ -27,6 +27,7 @@ import BankReconciliation from './pages/BankReconciliation'
 import Recruitment from './pages/Recruitment'
 import Hr from './pages/Hr'
 import Attendance from './pages/Attendance'
+import PayrollPage from './pages/Payroll'
 import { ReactNode } from 'react'
 
 const queryClient = new QueryClient({
@@ -78,6 +79,7 @@ export default function App() {
                   <Route path="recruitment" element={<Recruitment />} />
                   <Route path="hr" element={<Hr />} />
                   <Route path="attendance" element={<Attendance />} />
+                  <Route path="payroll" element={<PayrollPage />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

@@ -21,6 +21,7 @@ const (
 	PrefixLaborContract = "LC"
 	PrefixOnboarding    = "OB"
 	PrefixLeaveRequest  = "LR"
+	PrefixPayroll       = "PA"
 )
 
 // Generator 基于 code_counters 表的单号生成器

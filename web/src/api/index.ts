@@ -1361,3 +1361,62 @@ export const apiGenerateAttendance = (date: string) =>
   client.post<unknown, { created: number }>('/attendances/generate', { date })
 export const apiDeleteAttendance = (id: string) =>
   client.delete<unknown, { message: string }>(`/attendances/${id}`)
+
+// ---------- 薪酬核算（M6-S4） ----------
+
+export type PayrollStatus = 'draft' | 'calced' | 'paid'
+
+export interface Payroll {
+  id: string
+  code: string
+  employee_id: string
+  employee?: Employee
+  period: string // YYYY-MM
+  base_cent: number
+  bonus_cent: number
+  deduction_cent: number
+  social_cent: number
+  tax_cent: number
+  net_cent: number
+  status: PayrollStatus
+  paid_at?: string
+  owner_id: string
+  owner?: Employee
+  remark?: string
+}
+
+export interface PayrollInput {
+  employee_id: string
+  period: string
+  base_cent?: number
+  bonus_cent?: number
+  deduction_cent?: number
+  social_cent?: number
+  tax_cent?: number
+  remark?: string
+}
+
+export const PAYROLL_STATUS: Record<PayrollStatus, { label: string; color: string }> = {
+  draft: { label: '草稿', color: 'default' },
+  calced: { label: '已核算', color: 'processing' },
+  paid: { label: '已发放', color: 'success' },
+}
+
+export const apiListPayrolls = (params?: { period?: string; employee_id?: string; status?: string }) =>
+  client.get<unknown, Payroll[]>('/payrolls', { params })
+export const apiCreatePayroll = (data: PayrollInput) =>
+  client.post<unknown, Payroll>('/payrolls', data)
+export const apiGeneratePayrolls = (period: string) =>
+  client.post<unknown, { period: string; created: number }>('/payrolls/generate', { period })
+export const apiGetPayroll = (id: string) => client.get<unknown, Payroll>(`/payrolls/${id}`)
+export const apiUpdatePayroll = (id: string, data: PayrollInput) =>
+  client.put<unknown, Payroll>(`/payrolls/${id}`, data)
+export const apiCalcPayroll = (id: string) =>
+  client.post<unknown, Payroll>(`/payrolls/${id}/calc`)
+export const apiPayPayroll = (id: string) =>
+  client.post<unknown, Payroll>(`/payrolls/${id}/pay`)
+export const apiDeletePayroll = (id: string) =>
+  client.delete<unknown, { message: string }>(`/payrolls/${id}`)
+export const apiExportPayrolls = (period: string) =>
+  client.get<unknown, { period: string; csv: string }>('/payrolls/export', { params: { period } })
+

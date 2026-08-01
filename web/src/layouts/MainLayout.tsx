@@ -24,6 +24,7 @@ import {
   UserOutlined,
   SolutionOutlined,
   CalendarOutlined,
+  MoneyCollectOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -100,6 +101,9 @@ export default function MainLayout() {
       : []),
     ...(me?.role === 'admin' || me?.role === 'hr'
       ? [{ key: '/attendance', icon: <CalendarOutlined />, label: '考勤管理' }]
+      : []),
+    ...(me?.role === 'admin' || me?.role === 'finance' || me?.role === 'hr'
+      ? [{ key: '/payroll', icon: <MoneyCollectOutlined />, label: '薪酬管理' }]
       : []),
     { key: '/employees', icon: <TeamOutlined />, label: '员工' },
     ...(me?.role === 'admin'

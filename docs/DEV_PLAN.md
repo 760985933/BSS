@@ -249,11 +249,14 @@ mkdir -p bss/{cmd/server,internal,migrations,web,data} && cd bss && go mod init 
 - **验收**：排班维护、请假提交与审批（通过/驳回带原因）、考勤按排班生成 + 手动标记；后端单测 `attendance_test.go` + E2E `m6_attendance_e2e_test.go` 全绿；前端 `pages/Attendance.tsx`（排班/请假/考勤三 Tab，菜单「考勤管理」）全绿。
 - 已交付：migration `0013_attendance.sql`、`models/attendance.go`、`services/attendance.go`、`handlers/attendance.go`、`code.go` 增 `PrefixLeaveRequest="LR"`；前端 `pages/Attendance.tsx` + api 定义 + `App.tsx`/`MainLayout.tsx` 路由与菜单接入。
 
-### Sprint 4 · 薪酬核算（约 6 天）
+### Sprint 4 · 薪酬核算（约 6 天）—— ✅ 已完成 (2026-08-01)
 - `payrolls` 薪资结构（base/bonus/deduction/social/tax/net 整数分），月度核算按员工生成当期 payroll 支持手动调整
-- 工资条导出（CSV/摘要，敏感字段掩码）；`smtp_password` 类敏感字段不序列化
-- 端点：`/payrolls`、`POST /payrolls/:id/calc`、`GET /payrolls/export`（仅 admin/finance/hr）
-- **验收**：金额精度边界（多退少补/跨月）、已核算禁改、导出掩码；金额单测 + E2E 全绿
+- `labor_contracts` 补齐 `salary_cent`（DEV_PLAN 数据模型已含，S2 实现时遗漏）：合同录入月薪，生成薪资时自动取生效合同底薪
+- 状态机 draft→calced（核算：net=base+bonus-deduction-social-tax）→paid；**已核算/已发放锁定金额不可改、已发放不可删**
+- 工资条导出 CSV（敏感字段仅对授权角色可见，路由已限 admin/finance/hr）
+- 端点（均限 admin/finance/hr）：`/payrolls`、`POST /payrolls/generate`、`POST /payrolls/:id/calc`、`POST /payrolls/:id/pay`、`GET /payrolls/export`
+- **验收**：按生效合同自动取底薪、核算实发精度、已核算禁改、发放后锁定、CSV 导出；后端单测 `payroll_test.go` + E2E `m6_payroll_e2e_test.go` 全绿；前端 `pages/Payroll.tsx`（期间选择/生成/编辑/核算/发放/导出，菜单「薪酬管理」）全绿
+- 已交付：migration `0014_payroll.sql`（补 salary_cent + 建 payrolls）、`models/payroll.go`、`services/payroll.go`、`handlers/payroll.go`、`code.go` 增 `PrefixPayroll="PA"`；前端 `pages/Payroll.tsx` + api 定义 + `App.tsx`/`MainLayout.tsx` 路由与菜单接入
 
 ### Sprint 5 · 绩效考核（约 5 天）
 - `performance_cycles` 考核周期 + `performance_records` 评分（self_eval/leader_eval/score/grade）

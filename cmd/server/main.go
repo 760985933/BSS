@@ -73,6 +73,7 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	recruitH := handlers.NewRecruitmentHandler(gdb)
 	hrH := handlers.NewHRHandler(gdb)
 	attH := handlers.NewAttendanceHandler(gdb)
+	prH := handlers.NewPayrollHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -303,6 +304,19 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 		r.Post("/attendances/generate", attH.GenerateAttendance)
 		r.Delete("/attendances/{id}", attH.DeleteAttendance)
 	})
+
+		// M6-S4 薪酬核算：限 admin/finance/hr
+		r.With(middleware.RequireRole(models.RoleAdmin, models.RoleFinance, models.RoleHR)).Group(func(r chi.Router) {
+			r.Get("/payrolls", prH.ListPayrolls)
+			r.Post("/payrolls", prH.CreatePayroll)
+			r.Post("/payrolls/generate", prH.GeneratePayrolls)
+			r.Get("/payrolls/export", prH.ExportPayrolls)
+			r.Get("/payrolls/{id}", prH.GetPayroll)
+			r.Put("/payrolls/{id}", prH.UpdatePayroll)
+			r.Post("/payrolls/{id}/calc", prH.CalcPayroll)
+			r.Post("/payrolls/{id}/pay", prH.PayPayroll)
+			r.Delete("/payrolls/{id}", prH.DeletePayroll)
+		})
 		})
 
 		// /api 下未匹配路径返回 JSON 404（而不是 SPA 页面）

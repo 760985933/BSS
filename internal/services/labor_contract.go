@@ -43,6 +43,7 @@ type LaborContractInput struct {
 	EndDate         string `json:"end_date"`
 	SignDate        string `json:"sign_date"`
 	ProbationMonths int    `json:"probation_months"`
+	SalaryCent      *int64 `json:"salary_cent,omitempty"` // 月薪（分），可选
 }
 
 func getEmployee(db *gorm.DB, id uint) (*models.Employee, error) {
@@ -105,6 +106,9 @@ func CreateLaborContract(ctx context.Context, db *gorm.DB, gen *code.Generator, 
 		ProbationMonths: in.ProbationMonths,
 		Status:          models.LCStatusDraft,
 		OwnerID:         ownerID,
+	}
+	if in.SalaryCent != nil {
+		lc.SalaryCent = *in.SalaryCent
 	}
 	if err := db.WithContext(ctx).Create(&lc).Error; err != nil {
 		return nil, err
@@ -178,6 +182,9 @@ func UpdateLaborContract(ctx context.Context, db *gorm.DB, id uint, in LaborCont
 		"end_date":         ed,
 		"sign_date":        sg,
 		"probation_months": in.ProbationMonths,
+	}
+	if in.SalaryCent != nil {
+		updates["salary_cent"] = *in.SalaryCent
 	}
 	if in.EmployeeID != 0 {
 		updates["employee_id"] = in.EmployeeID
@@ -394,6 +401,20 @@ func DeleteOnboarding(ctx context.Context, db *gorm.DB, id uint) error {
 		return ErrOnboardingMissing
 	}
 	return nil
+}
+
+// GetActiveContractForEmployee 取员工当前生效中的劳动合同（无则 nil, nil）
+func GetActiveContractForEmployee(ctx context.Context, db *gorm.DB, employeeID uint) (*models.LaborContract, error) {
+	var lc models.LaborContract
+	err := db.WithContext(ctx).Where("employee_id = ? AND status = ? AND deleted_at IS NULL",
+		employeeID, models.LCStatusActive).Order("id DESC").First(&lc).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &lc, nil
 }
 
 // ScanLaborContractReminders 扫描生效中劳动合同并生成提醒：

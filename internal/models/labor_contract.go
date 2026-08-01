@@ -42,6 +42,7 @@ type LaborContract struct {
 	EndDate         *time.Time `json:"end_date,omitempty"`
 	SignDate        *time.Time `json:"sign_date,omitempty"`
 	ProbationMonths int        `json:"probation_months"`
+	SalaryCent       int64      `json:"salary_cent"` // 月薪（分）
 	Status          string     `json:"status"`
 	TerminateReason string     `json:"terminate_reason,omitempty"`
 	OwnerID         uint       `json:"owner_id,string"`
