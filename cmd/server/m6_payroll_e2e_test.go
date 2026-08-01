@@ -124,3 +124,64 @@ func TestM6PayrollE2E(t *testing.T) {
 		t.Fatalf("导出 CSV 应含员工名, got %s", body)
 	}
 }
+
+// TestM6PayrollErrorPaths 回归：GeneratePayrolls 解析失败→400；CalcPayroll 负实发→400。
+func TestM6PayrollErrorPaths(t *testing.T) {
+	dir := t.TempDir()
+	gdb, err := db.Open(dir)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	authSvc := services.NewAuthService(gdb)
+	if err := authSvc.InitAdmin(context.Background()); err != nil {
+		t.Fatalf("InitAdmin: %v", err)
+	}
+	cfg := &config.Config{Addr: "127.0.0.1:0", DataDir: dir, JWTSecret: "test-secret-m6-pay-err"}
+	h := buildRouter(cfg, gdb, authSvc)
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	adminTok := m3LoginAs(t, srv, "admin@bss.local", "admin123")
+
+	// 1) 生成薪资 请求体 JSON 非法（number 进 string 字段）→ 400
+	code, body := m3DoReq(srv, "POST", "/payrolls/generate", adminTok, []byte(`{"period":123}`), "application/json")
+	if code != http.StatusBadRequest {
+		t.Fatalf("生成薪资解析失败应 400, got %d body=%s", code, body)
+	}
+	if !strings.Contains(string(body), "请求体解析失败") {
+		t.Fatalf("解析失败应返回 '请求体解析失败', got %s", body)
+	}
+
+	// 2) 空请求体 → 默认当前月份，仍 200（保留既有行为，仅拒非法 JSON）
+	code, body = m3DoReq(srv, "POST", "/payrolls/generate", adminTok, nil, "")
+	if code != http.StatusOK {
+		t.Fatalf("空体生成薪资应 200(默认当前月份), got %d body=%s", code, body)
+	}
+
+	// 创建员工用于负实发核算用例
+	code, body = m3DoReq(srv, "POST", "/employees", adminTok, m3MustJSON(t, map[string]any{
+		"name": "薪资员工D", "phone": "13900000003", "dept": "技术部",
+		"position": "工程师", "role": "hr", "email": "pay_err_emp@x.com",
+	}), "application/json")
+	if code != http.StatusOK {
+		t.Fatalf("创建员工失败: code=%d body=%s", code, body)
+	}
+	empID := m6NestedID(t, body, "employee")
+
+	// 3) 创建底薪 1000、扣款 5000 的薪资 → 核算应拒（实发为负）
+	code, body = m3DoReq(srv, "POST", "/payrolls", adminTok, m3MustJSON(t, map[string]any{
+		"employee_id": empID, "period": "2026-12", "base_cent": 1000, "deduction_cent": 5000,
+	}), "application/json")
+	if code != http.StatusOK {
+		t.Fatalf("创建薪资失败: code=%d body=%s", code, body)
+	}
+	payID := m6DataID(t, body)
+
+	code, body = m3DoReq(srv, "POST", "/payrolls/"+payID+"/calc", adminTok, nil, "")
+	if code != http.StatusBadRequest {
+		t.Fatalf("核算负实发应 400, got %d body=%s", code, body)
+	}
+	if !strings.Contains(string(body), "实发工资不能为负数") {
+		t.Fatalf("核算拒绝应说明实发为负, got %s", body)
+	}
+}

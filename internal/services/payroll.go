@@ -23,6 +23,7 @@ var (
 	ErrPayrollPaid         = errors.New("已发放薪资不可删除")
 	ErrPayrollPeriodInvalid = errors.New("期间格式应为 YYYY-MM")
 	ErrPayrollEmployeeMissing = errors.New("员工不存在")
+	ErrPayrollNetNegative    = errors.New("实发工资不能为负数，请检查各项金额")
 )
 
 // CurrentPeriod 返回当前月份期间 YYYY-MM
@@ -226,6 +227,9 @@ func CalcPayroll(ctx context.Context, db *gorm.DB, id uint) (*models.Payroll, er
 		return nil, ErrPayrollCalcState
 	}
 	net := p.BaseCent + p.BonusCent - p.DeductionCent - p.SocialCent - p.TaxCent
+	if net < 0 {
+		return nil, ErrPayrollNetNegative
+	}
 	updates := map[string]any{
 		"net_cent": net,
 		"status":   models.PayrollCalced,

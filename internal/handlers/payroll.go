@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -61,7 +62,11 @@ func (h *PayrollHandler) GeneratePayrolls(w http.ResponseWriter, r *http.Request
 	var req struct {
 		Period string `json:"period"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	// 允许空请求体（无 period → 默认当前月份）；仅当 JSON 结构非法时返回 400
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+		resp.Fail(w, http.StatusBadRequest, resp.CodeBadRequest, "请求体解析失败")
+		return
+	}
 	if req.Period == "" {
 		// 缺省为当前月份
 		req.Period = services.CurrentPeriod()
@@ -125,6 +130,8 @@ func (h *PayrollHandler) CalcPayroll(w http.ResponseWriter, r *http.Request) {
 			resp.Fail(w, http.StatusNotFound, resp.CodeNotFound, err.Error())
 		case errors.Is(err, services.ErrPayrollCalcState):
 			resp.Fail(w, http.StatusConflict, resp.CodeInvalidStateTransit, err.Error())
+		case errors.Is(err, services.ErrPayrollNetNegative):
+			resp.Fail(w, http.StatusBadRequest, resp.CodeBadRequest, err.Error())
 		default:
 			resp.Fail(w, http.StatusInternalServerError, resp.CodeInternal, err.Error())
 		}

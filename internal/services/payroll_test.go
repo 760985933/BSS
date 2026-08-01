@@ -156,6 +156,32 @@ func TestPayrollCalcAndPayFlow(t *testing.T) {
 	}
 }
 
+func TestPayrollCalcRejectsNegativeNet(t *testing.T) {
+	db := setupPayrollDB(t)
+	gen := code.NewGenerator(db)
+	ctx := context.Background()
+	empID := payrollMustEmployee(t, db, "负员工")
+	// 底薪 1000，扣款 5000 → 实发 = 1000-5000 = -4000，应为负
+	p, err := CreatePayroll(ctx, db, gen, PayrollInput{EmployeeID: empID, Period: "2026-12", BaseCent: 1000, DeductionCent: 5000}, 1)
+	if err != nil {
+		t.Fatalf("CreatePayroll: %v", err)
+	}
+	if _, err := CalcPayroll(ctx, db, p.ID); err == nil || !errors.Is(err, ErrPayrollNetNegative) {
+		t.Fatalf("核算负实发应被拒(ErrPayrollNetNegative)，got %v", err)
+	}
+	// 记录应保持草稿，未写入负实发
+	after, err := GetPayroll(ctx, db, p.ID)
+	if err != nil {
+		t.Fatalf("GetPayroll: %v", err)
+	}
+	if after.Status != models.PayrollDraft {
+		t.Fatalf("被拒后状态应保持 draft，got %s", after.Status)
+	}
+	if after.NetCent != 0 {
+		t.Fatalf("被拒后 net 应仍为 0，got %d", after.NetCent)
+	}
+}
+
 func TestPayrollInvalidTransitions(t *testing.T) {
 	db := setupPayrollDB(t)
 	gen := code.NewGenerator(db)
