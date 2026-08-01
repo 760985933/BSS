@@ -72,6 +72,7 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 	nchH := handlers.NewNotifyChannelHandler(gdb)
 	recruitH := handlers.NewRecruitmentHandler(gdb)
 	hrH := handlers.NewHRHandler(gdb)
+	attH := handlers.NewAttendanceHandler(gdb)
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
@@ -282,10 +283,26 @@ func buildRouter(cfg *config.Config, gdb *gorm.DB, authSvc *services.AuthService
 			r.Post("/labor-contracts/{id}/transition", hrH.TransitionLaborContract)
 			r.Get("/onboardings", hrH.ListOnboardings)
 			r.Post("/onboardings", hrH.CreateOnboarding)
-			r.Get("/onboardings/{id}", hrH.GetOnboarding)
-			r.Put("/onboardings/{id}", hrH.UpdateOnboarding)
-			r.Delete("/onboardings/{id}", hrH.DeleteOnboarding)
-		})
+		r.Get("/onboardings/{id}", hrH.GetOnboarding)
+		r.Put("/onboardings/{id}", hrH.UpdateOnboarding)
+		r.Delete("/onboardings/{id}", hrH.DeleteOnboarding)
+
+		// M6-S3 考勤排班 + 请假 + 考勤记录
+		r.Get("/schedules", attH.ListSchedules)
+		r.Post("/schedules", attH.CreateSchedule)
+		r.Get("/schedules/{id}", attH.GetSchedule)
+		r.Put("/schedules/{id}", attH.UpdateSchedule)
+		r.Delete("/schedules/{id}", attH.DeleteSchedule)
+		r.Get("/leave-requests", attH.ListLeaveRequests)
+		r.Post("/leave-requests", attH.CreateLeaveRequest)
+		r.Get("/leave-requests/{id}", attH.GetLeaveRequest)
+		r.Delete("/leave-requests/{id}", attH.DeleteLeaveRequest)
+		r.Post("/leave-requests/{id}/decide", attH.DecideLeaveRequest)
+		r.Get("/attendances", attH.ListAttendances)
+		r.Post("/attendances", attH.UpsertAttendance)
+		r.Post("/attendances/generate", attH.GenerateAttendance)
+		r.Delete("/attendances/{id}", attH.DeleteAttendance)
+	})
 		})
 
 		// /api 下未匹配路径返回 JSON 404（而不是 SPA 页面）

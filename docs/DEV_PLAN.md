@@ -241,11 +241,13 @@ mkdir -p bss/{cmd/server,internal,migrations,web,data} && cd bss && go mod init 
 - **验收**：合同生命周期 + 入职步骤推进 + 到期/转正提醒；单测 + E2E 全绿
 - 已交付：migration `0012_labor_contract_onboarding.sql`、`models/labor_contract.go`、`services/labor_contract.go`、`handlers/labor_contract.go`（HRHandler 合并劳动合同+入职）、`notification.go` 接入到期/转正扫描段；前端 `pages/Hr.tsx`（劳动合同/入职两 Tab，限 admin/hr）；后端单测 `labor_contract_test.go` + E2E `m6_hr_e2e_test.go` 全绿。
 
-### Sprint 3 · 考勤排班 + 请假（约 5 天）—— 形态：仅排班+请假
-- `attendance_schedules` 排班表（按员工/星期/班别），`leave_requests` 请假申请 + 审批流（复用 M2 approvals 机制）
-- 考勤结果基于排班 + 请假人工/自动标记出勤状态（**不做 GPS 打卡**；可选轻量网页"签到"记录）
-- 端点：`/schedules`、`/leave-requests`（请假审批沿用 M2 审批流）
-- **验收**：排班维护、请假提交与审批、出勤状态标记；单测 + E2E 全绿
+### Sprint 3 · 考勤排班 + 请假（约 5 天）—— 形态：仅排班+请假 ✅ 已完成 (2026-08-01)
+- `attendance_schedules` 排班表（按员工/星期/班别），`leave_requests` 请假申请 + 自包含审批状态机（pending→approved/rejected，记录 approver/approved_at/reject_reason），`attendances` 考勤记录（按员工+日期标记 normal/late/early/absent/leave/holiday）。
+- 考勤生成 `GenerateAttendance(date)`：依据该日星期匹配排班，自动生成 normal；若员工当日处于已批请假区间则标记为 leave（带 leave_type）；同日已存在则跳过（去重）。手动登记走 `UpsertAttendance`（同日覆盖更新）。
+- **说明**：请假审批采用与 M2 approvals 同概念的自包含状态机（model 含 approver_id/status，无额外 approvals 表关联），契合冻结的 `leave_requests` 数据模型（status+approver_id，无 approval 外键），不过度耦合通用审批流。
+- 端点（均限 admin/hr）：`/schedules`、`/leave-requests`、`POST /leave-requests/{id}/decide`、`/attendances`、`POST /attendances/generate`。
+- **验收**：排班维护、请假提交与审批（通过/驳回带原因）、考勤按排班生成 + 手动标记；后端单测 `attendance_test.go` + E2E `m6_attendance_e2e_test.go` 全绿；前端 `pages/Attendance.tsx`（排班/请假/考勤三 Tab，菜单「考勤管理」）全绿。
+- 已交付：migration `0013_attendance.sql`、`models/attendance.go`、`services/attendance.go`、`handlers/attendance.go`、`code.go` 增 `PrefixLeaveRequest="LR"`；前端 `pages/Attendance.tsx` + api 定义 + `App.tsx`/`MainLayout.tsx` 路由与菜单接入。
 
 ### Sprint 4 · 薪酬核算（约 6 天）
 - `payrolls` 薪资结构（base/bonus/deduction/social/tax/net 整数分），月度核算按员工生成当期 payroll 支持手动调整

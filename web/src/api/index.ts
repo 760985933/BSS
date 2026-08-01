@@ -1240,3 +1240,124 @@ export const apiUpdateOnboarding = (id: string, data: OnboardingInput) =>
 
 export const apiDeleteOnboarding = (id: string) =>
   client.delete<unknown, { message: string }>(`/onboardings/${id}`)
+
+// ---------- 考勤排班 + 请假 + 考勤记录（M6-S3，admin/hr） ----------
+export interface AttendanceSchedule {
+  id: string
+  employee_id: string
+  employee?: { id: string; name: string }
+  weekday: number // 1=周一..7=周日
+  start_time: string
+  end_time: string
+  shift_type: string
+}
+
+export interface LeaveRequest {
+  id: string
+  code: string
+  employee_id: string
+  employee?: { id: string; name: string }
+  type: string
+  start_date?: string
+  end_date?: string
+  reason?: string
+  status: string
+  approver_id: string
+  approver?: { id: string; name: string }
+  approved_at?: string
+  reject_reason?: string
+}
+
+export interface Attendance {
+  id: string
+  employee_id: string
+  employee?: { id: string; name: string }
+  date: string
+  schedule_id?: string
+  schedule?: AttendanceSchedule
+  status: string
+  leave_type?: string
+  remark?: string
+}
+
+export interface ScheduleInput {
+  employee_id: string
+  weekday: number
+  start_time: string
+  end_time: string
+  shift_type: string
+}
+
+export interface LeaveRequestInput {
+  employee_id: string
+  type: string
+  start_date: string
+  end_date: string
+  reason?: string
+}
+
+export interface AttendanceInput {
+  employee_id: string
+  date: string
+  schedule_id?: string
+  status: string
+  leave_type?: string
+  remark?: string
+}
+
+export const SCHEDULE_SHIFT: Record<string, string> = {
+  regular: '常日班',
+  night: '夜班',
+  shift: '倒班',
+}
+export const WEEKDAY_LABEL: Record<number, string> = {
+  1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日',
+}
+export const LEAVE_TYPE: Record<string, string> = {
+  annual: '年假',
+  sick: '病假',
+  personal: '事假',
+  marriage: '婚假',
+  maternity: '产假/陪产假',
+  bereavement: '丧假',
+}
+export const LEAVE_STATUS: Record<string, { label: string; color: string }> = {
+  pending: { label: '待审批', color: 'processing' },
+  approved: { label: '已通过', color: 'success' },
+  rejected: { label: '已驳回', color: 'default' },
+}
+export const ATT_STATUS: Record<string, { label: string; color: string }> = {
+  normal: { label: '正常', color: 'success' },
+  late: { label: '迟到', color: 'gold' },
+  early: { label: '早退', color: 'orange' },
+  absent: { label: '缺勤', color: 'red' },
+  leave: { label: '请假', color: 'blue' },
+  holiday: { label: '节假日', color: 'purple' },
+}
+
+export const apiListSchedules = (params?: { employee_id?: string }) =>
+  client.get<unknown, AttendanceSchedule[]>('/schedules', { params })
+export const apiCreateSchedule = (data: ScheduleInput) =>
+  client.post<unknown, AttendanceSchedule>('/schedules', data)
+export const apiUpdateSchedule = (id: string, data: ScheduleInput) =>
+  client.put<unknown, AttendanceSchedule>(`/schedules/${id}`, data)
+export const apiDeleteSchedule = (id: string) =>
+  client.delete<unknown, { message: string }>(`/schedules/${id}`)
+
+export const apiListLeaveRequests = (params?: { employee_id?: string; status?: string; type?: string }) =>
+  client.get<unknown, LeaveRequest[]>('/leave-requests', { params })
+export const apiCreateLeaveRequest = (data: LeaveRequestInput) =>
+  client.post<unknown, LeaveRequest>('/leave-requests', data)
+export const apiDeleteLeaveRequest = (id: string) =>
+  client.delete<unknown, { message: string }>(`/leave-requests/${id}`)
+export const apiDecideLeaveRequest = (id: string, approve: boolean, reason?: string) =>
+  client.post<unknown, LeaveRequest>(`/leave-requests/${id}/decide`, { approve, reason })
+
+export const apiListAttendances = (params?: { employee_id?: string; date?: string; status?: string; from?: string; to?: string }) =>
+  client.get<unknown, Attendance[]>('/attendances', { params })
+export const apiUpsertAttendance = (data: AttendanceInput) =>
+  client.post<unknown, Attendance>('/attendances', data)
+export const apiGenerateAttendance = (date: string) =>
+  client.post<unknown, { created: number }>('/attendances/generate', { date })
+export const apiDeleteAttendance = (id: string) =>
+  client.delete<unknown, { message: string }>(`/attendances/${id}`)
